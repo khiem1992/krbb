@@ -1,606 +1,140 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo Online</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        #detail-modal { transition: opacity 0.3s ease; }
-        #modal-panel { transition: transform 0.3s ease; }
-        .chevron { transition: transform 0.2s ease-in-out; }
-        .chevron-rotated { transform: rotate(180deg); }
-        /* (MỚI) Nút Refresh */
-        #refresh-button { transition: all 0.3s ease; }
-        #refresh-button.disabled {
-            opacity: 0.5; background-color: #555;
-            cursor: not-allowed; transform: scale(0.95);
-        }
-        #refresh-icon { transition: transform 0.5s ease; }
-        #refresh-button.loading #refresh-icon { transform: rotate(360deg); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Báo Cáo Karaoke</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #7c3aed; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .detail-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+    .detail-panel.open { max-height: 3000px; }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-
-    <div id="detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeModal()">
-        <div id="modal-panel" class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
-            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
-                <h3 id="modal-title" class="text-xl font-semibold text-gray-900">Chi Tiết</h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div id="modal-content" class="p-6"></div>
-        </div>
-    </div>
-    
-    <button id="refresh-button" onclick="forceFetchData()" class="fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 active:scale-95">
-        <svg id="refresh-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2.086a10.001 10.001 0 00-16.422-3.08m-.5 3.08l.5.001A10.001 10.001 0 0020 12h-5.082m-2.086 5.356a10.001 10.001 0 00-16.422 3.08m.5-3.08l-.5-.001A10.001 10.001 0 004 12h5.082"></path>
-        </svg>
-    </button>
-    <div id="refresh-toast" class="hidden fixed bottom-24 right-6 z-40 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
-        Đã cập nhật dữ liệu mới!
-    </div>
-    
-    <div class="container mx-auto p-4 md:p-8">
-
-        <div id="page-loader" class="flex flex-col items-center justify-center min-h-screen">
-            <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            <span class="text-lg text-gray-700 mt-4">Đang tải dữ liệu báo cáo...</span>
-        </div>
-
-        <div id="dashboard" class="hidden">
-            <h1 class="text-4xl font-bold text-center text-gray-900 mb-10">Báo Cáo Kinh Doanh</h1>
-            
-            <div id="data-error-banner" class="hidden mb-6 p-5 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg shadow-md">
-                 <h4 class="font-bold text-lg">Không thể tải dữ liệu báo cáo!</h4>
-                 <p class="mt-3 font-mono text-sm bg-red-50 p-2 rounded" id="fetch-error-details"></p>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
-                
-                <div class="lg:col-span-2 2xl:col-span-1 bg-white rounded-xl shadow-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Trạng Thái Phòng</h3>
-                    <div id="trang-thai-thong-ke" class="space-y-3 mb-5"></div>
-                    <div id="trang-thai-bang" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold">Doanh Thu 7 Ngày</h3>
-                        <svg class="chevron w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div id="doanh-thu-7-ngay-content" class="hidden mt-4 pt-4 border-t border-gray-200">
-                        <div id="doanh-thu-7-ngay-bang" class="space-y-1"></div>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Hóa Đơn Hôm Nay</h3>
-                    <div id="hd-hom-nay-bang"></div>
-                </div>
-
-                <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold">Hóa Đơn Hôm Qua</h3>
-                        <svg class="chevron w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div id="hd-hom-qua-content" class="hidden mt-4 pt-4 border-t border-gray-200">
-                        <div id="hd-hom-qua-bang"></div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Doanh Thu Tháng (So Sánh)</h3>
-                    <div class="h-80"> <canvas id="revenue-chart"></canvas> </div>
-                </div>
-                
-                <div class="lg:col-span-2 2xl:col-span-1 bg-white rounded-xl shadow-lg p-6">
-                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold">Sổ Nợ</h3>
-                        <svg class="chevron w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div id="so-no-content" class="hidden mt-4 pt-4 border-t border-gray-200">
-                        <div id="so-no-bang"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
+  <div class="container mx-auto p-4 max-w-7xl">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Báo Cáo Karaoke</h1>
+      <button id="updateBtn" class="bg-purple-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-purple-700 flex items-center">
+        <span id="btnText">Cập nhật dữ liệu</span>
+      </button>
     </div>
 
-    <script>
-        // --- 1. CÀI ĐẶT ---
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyCa5sx1ArOoePj3q4fwoG2QQqlK8fOc068C7GCz1xy9SsU8MohOkmn2IBNt3psBBuM/exec'; // THAY URL CỦA BẠN VÀO ĐÂY
-        const LOCAL_CACHE_KEY = 'BaoCaoCache';
-        const LOCAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 giờ theo yêu cầu
+    <!-- Tình trạng hoạt động -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+      <h2 class="text-xl font-bold text-purple-700 mb-2">Tình trạng hoạt động các phòng VIP</h2>
+      <p class="text-sm text-gray-600">Dữ liệu cập nhật từ file Excel • <span id="lastUpdate">--:--</span></p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6" id="rooms"></div>
+    </div>
 
-        let globalData = {}; 
-        
-        const pageLoader = document.getElementById('page-loader');
-        const dashboard = document.getElementById('dashboard');
-        const dataErrorBanner = document.getElementById('data-error-banner');
-        const fetchErrorDetails = document.getElementById('fetch-error-details');
-        const modal = document.getElementById('detail-modal');
-        const modalPanel = document.getElementById('modal-panel');
-        const modalTitle = document.getElementById('modal-title');
-        const modalContent = document.getElementById('modal-content');
-        const refreshButton = document.getElementById('refresh-button');
-        const refreshToast = document.getElementById('refresh-toast');
-        let chartInstance = null; // Biến giữ biểu đồ
+    <!-- Các phần khác -->
+    <div id="content"></div>
+  </div>
 
-        // --- 2. LOGIC TẢI DỮ LIỆU (ĐÃ TỐI ƯU) ---
-        
-        window.addEventListener('DOMContentLoaded', () => loadInitialData());
+  <script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4bJdYUsQKDuWoTaCM3PXkvESJw5d2qhmnGepe22kjjPJGQV3K2-bjChISTkSgBi4/exec'; // ← DÁN URL SAU DEPLOY
+    const TTL = 24 * 60 * 60 * 1000;
+    let isUpdating = false;
 
-        function loadInitialData() {
-            const cachedData = getFromLocalStorage();
-            const now = Date.now();
+    window.onload = () => {
+      loadFromLocal() || updateData(false);
+      setTimeout(() => updateData(false), 500);
+    };
 
-            if (cachedData && (now - cachedData.timestamp < LOCAL_CACHE_TTL_MS)) {
-                // 1. Có cache hợp lệ: Hiển thị ngay (Lazy Render)
-                console.log('Tải từ localStorage (nhanh)');
-                globalData = cachedData.data;
-                renderDashboard(globalData, true); // true = lazy render
-                pageLoader.style.display = 'none';
-                dashboard.classList.remove('hidden');
+    document.getElementById('updateBtn').onclick = () => {
+      if (isUpdating) return;
+      updateData(true);
+    };
 
-                // 2. Cập nhật ngầm (không ép)
-                fetchData(false);
+    function loadFromLocal() {
+      try {
+        const time = localStorage.getItem('lastCacheTime');
+        if (!time || Date.now() - parseInt(time) > TTL) {
+          clearLocal();
+          return null;
+        }
+        const data = localStorage.getItem('BaoCaoData');
+        const hash = localStorage.getItem('lastUpdated');
+        if (data && hash) {
+          const parsed = JSON.parse(data);
+          renderData(parsed);
+          showTime(hash);
+          return parsed;
+        }
+      } catch { }
+      return null;
+    }
+
+    function saveToLocal(data) {
+      try {
+        localStorage.setItem('BaoCaoData', JSON.stringify(data));
+        localStorage.setItem('lastUpdated', data.lastUpdated);
+        localStorage.setItem('lastCacheTime', Date.now().toString());
+      } catch { }
+    }
+
+    function clearLocal() {
+      localStorage.removeItem('BaoCaoData');
+      localStorage.removeItem('lastUpdated');
+      localStorage.removeItem('lastCacheTime');
+    }
+
+    function updateData(force = false) {
+      if (isUpdating) return;
+      isUpdating = true;
+      const btn = document.getElementById('updateBtn');
+      const text = document.getElementById('btnText');
+      btn.classList.add('opacity-70');
+      text.innerHTML = '<div class="spinner"></div> Đang tải...';
+
+      const url = force ? `${SCRIPT_URL}?forceRefresh=true` : SCRIPT_URL;
+      fetch(url)
+        .then(r => r.json())
+        .then(server => {
+          if (server.status === 'success') {
+            const localHash = localStorage.getItem('lastUpdated');
+            if (!localHash || server.lastUpdated !== localHash) {
+              renderData(server.data);
+              saveToLocal(server);
+              showTime(server.lastUpdated);
+              text.textContent = 'Cập nhật thành công!';
             } else {
-                // 3. Không có cache hoặc cache hết hạn 24h: Tải mới
-                console.log('Không có cache hoặc cache 24h hết hạn, tải mới...');
-                if(cachedData) localStorage.removeItem(LOCAL_CACHE_KEY); // Xóa cache cũ
-                fetchData(false); 
+              text.textContent = 'Dữ liệu mới nhất';
             }
-        }
+          }
+          setTimeout(() => {
+            text.textContent = 'Cập nhật dữ liệu';
+            btn.classList.remove('opacity-70');
+          }, 1000);
+        })
+        .catch(() => {
+          text.textContent = 'Lỗi kết nối';
+        })
+        .finally(() => { isUpdating = false; });
+    }
 
-        function fetchData(forceRefresh = false) {
-            // Thêm cache_bust để tránh cache trình duyệt
-            let url = GAS_WEB_APP_URL + '?cache_bust=' + Date.now();
-            if (forceRefresh) {
-                url += '&forceRefresh=true';
-                setRefreshButtonLoading(true);
-            }
+    function renderData(data) {
+      // === PHÒNG VIP ===
+      const roomsHtml = data.trangThaiPhong.rooms.map(r => `
+        <div class="bg-white p-5 rounded-xl shadow-md border-l-4 ${r[1]?.includes('Đang') ? 'border-green-500' : 'border-gray-300'}">
+          <h3 class="font-bold text-lg">${r[0]}</h3>
+          <p class="text-sm">${r[1] || "Trống"}</p>
+          <p class="text-xs text-gray-500">${r[2] || ""}</p>
+          <p class="text-xs mt-2">${r[3] || ""}</p>
+        </div>
+      `).join('');
+      document.getElementById('rooms').innerHTML = roomsHtml;
 
-            fetch(url)
-            .then(response => response.json())
-            .then(res => {
-                if (res.status === 'success') {
-                    console.log('Tải dữ liệu từ GAS thành công');
-                    const cachedData = getFromLocalStorage();
-                    
-                    // So sánh lastUpdated (hash)
-                    if (!cachedData || cachedData.lastUpdated !== res.lastUpdated) {
-                        console.log('Phát hiện dữ liệu mới, render lại');
-                        globalData = res.data;
-                        renderDashboard(globalData, false); // false = render đầy đủ
-                        saveToLocalStorage(globalData, res.lastUpdated);
-                        
-                        if(forceRefresh) showToast('Đã cập nhật dữ liệu mới!');
-                    } else {
-                        console.log('Dữ liệu không đổi, không render lại');
-                        if(forceRefresh) showToast('Không có gì mới');
-                    }
-                    
-                    pageLoader.style.display = 'none';
-                    dashboard.classList.remove('hidden');
-                    dataErrorBanner.classList.add('hidden');
-                    
-                } else { 
-                    throw new Error(res.message || 'Lỗi không xác định từ Google Script'); 
-                }
-            })
-            .catch(err => {
-                console.error('Lỗi fetch:', err);
-                fetchErrorDetails.textContent = `Chi tiết lỗi: ${err.message}.`;
-                dataErrorBanner.classList.remove('hidden');
-                pageLoader.style.display = 'none';
-                dashboard.classList.remove('hidden'); // Vẫn hiện dashboard (với cache cũ nếu có)
-            })
-            .finally(() => {
-                if (forceRefresh) {
-                    setRefreshButtonLoading(false);
-                }
-            });
-        }
+      // === CÁC PHẦN KHÁC (TÙY CHỈNH) ===
+      // hdHomNay, doanhThu, soNo...
+    }
 
-        function forceFetchData() {
-            if (refreshButton.disabled) return; // Chống spam
-            console.log('Ép làm mới dữ liệu!');
-            fetchData(true); 
-        }
-
-        // --- 3. CÁC HÀM QUẢN LÝ CACHE (localStorage) ---
-        
-        function getFromLocalStorage() {
-            try {
-                const cachedString = localStorage.getItem(LOCAL_CACHE_KEY);
-                if (!cachedString) return null;
-                return JSON.parse(cachedString);
-            } catch (e) {
-                console.warn('Không thể đọc localStorage (có thể do chế độ ẩn danh)', e);
-                return null;
-            }
-        }
-
-        function saveToLocalStorage(data, lastUpdated) {
-             try {
-                const cachePayload = {
-                    data: data,
-                    lastUpdated: lastUpdated,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(cachePayload));
-             } catch (e) {
-                console.warn('Không thể ghi vào localStorage', e);
-             }
-        }
-
-        // --- 4. CÁC HÀM GIAO DIỆN (Refresh Button, Toast) ---
-        
-        function setRefreshButtonLoading(isLoading) {
-            const icon = document.getElementById('refresh-icon');
-            if (isLoading) {
-                refreshButton.classList.add('loading', 'disabled');
-                refreshButton.disabled = true;
-            } else {
-                refreshButton.classList.remove('loading');
-                // Debounce 10 giây theo yêu cầu
-                setTimeout(() => {
-                    refreshButton.classList.remove('disabled');
-                    refreshButton.disabled = false;
-                }, 10000); 
-            }
-        }
-        
-        function showToast(message) {
-            refreshToast.textContent = message;
-            refreshToast.classList.remove('hidden');
-            setTimeout(() => {
-                refreshToast.classList.add('hidden');
-            }, 3000);
-        }
-
-        // --- 5. CÁC HÀM RENDER (ĐÃ TỐI ƯU LAZY RENDER) ---
-
-        /**
-         * Hàm render chính, hỗ trợ Lazy Render
-         * @param {object} data - Dữ liệu
-         * @param {boolean} lazy - True = chỉ render phần "above the fold"
-         */
-        function renderDashboard(data, lazy = false) {
-            document.getElementById('trang-thai-thong-ke').innerHTML = '';
-            
-            // 1. Luôn render Trạng Thái Phòng ngay lập tức (theo yêu cầu III.2)
-            renderTrangThaiPhong(data.trangThaiPhong);
-            
-            // 2. Các hàm render "nặng"
-            const renderHeavyComponents = () => {
-                renderDoanhThuChart(data.doanhThu);
-                renderDoanhThu7Ngay(data.doanhThu.ngay);
-                renderTable(data.soNo, 'so-no-bang', 'Không có sổ nợ');
-                renderTable(data.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua'); 
-                
-                const hdHomNayCard = document.getElementById('hd-hom-nay-bang').closest('.bg-white');
-                if (!data.hdHomNay || !data.hdHomNay.rows || data.hdHomNay.rows.length === 0) {
-                    if(hdHomNayCard) hdHomNayCard.style.display = 'none'; 
-                } else {
-                    if(hdHomNayCard) hdHomNayCard.style.display = 'block';
-                    renderTable(data.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay'); 
-                }
-            };
-
-            if (lazy) {
-                // Render sau 300ms (theo yêu cầu III.2)
-                setTimeout(renderHeavyComponents, 300);
-            } else {
-                // Render ngay
-                renderHeavyComponents();
-            }
-            
-            // Đặt lại trạng thái đóng/mở
-            document.querySelectorAll('[id$="-content"]').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.chevron').forEach(el => el.classList.remove('chevron-rotated'));
-        }
-
-        function renderTrangThaiPhong(data) {
-            const thongKeDiv = document.getElementById('trang-thai-thong-ke');
-            thongKeDiv.innerHTML = `
-                <div class="px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 font-medium">${data.thongKe.homNay}</div>
-            `;
-            
-            const container = document.getElementById('trang-thai-bang');
-            if (!data || !data.rooms || data.rooms.length === 0) {
-                container.innerHTML = `<p class="text-sm text-gray-500 italic">Không có dữ liệu phòng.</p>`;
-                return;
-            }
-
-            let html = '';
-            data.rooms.forEach(room => {
-                const tenPhong = room[0];
-                const trangThai = room[1];
-                const gioVaoSerial = room[2];
-                const ghiChu = room[3];
-                const colorClasses = getTrangThaiClasses(trangThai);
-                let gioVaoDisplay = '';
-                if (trangThai.toLowerCase().includes('có khách') || trangThai.toLowerCase().includes('chưa dọn')) {
-                    gioVaoDisplay = convertExcelDate(gioVaoSerial);
-                }
-                html += `
-                    <div class="p-3.5 rounded-lg border ${colorClasses} shadow-sm space-y-1">
-                        <div class="flex justify-between items-start">
-                            <span class="font-bold text-lg">${tenPhong}</span>
-                            <span class="font-semibold text-xs px-2 py-0.5 rounded-full ${colorClasses}">${trangThai}</span>
-                        </div>
-                        <div class="text-sm space-y-0.5">
-                            <p><strong>Giờ:</strong> ${gioVaoDisplay || '---'}</p>
-                            <p class="text-xs"><strong>Note:</strong> ${ghiChu || '---'}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        function renderTable(dataBlock, elementId, emptyMessage) {
-            const container = document.getElementById(elementId);
-            const card = container.closest('.bg-white');
-
-            if (!dataBlock || !dataBlock.rows || dataBlock.rows.length === 0) {
-                if (elementId !== 'hd-hom-nay-bang') {
-                     if(card) card.style.display = 'none';
-                } else {
-                     container.innerHTML = `<p class="text-sm text-gray-500 italic">${emptyMessage}</p>`;
-                }
-                return;
-            }
-            if(card) card.style.display = 'block';
-            
-            const isInvoiceTable = (elementId === 'hd-hom-nay-bang' || elementId === 'hd-hom-qua-bang');
-            const isSoNoTable = (elementId === 'so-no-bang');
-
-            let html = '<div class="flex flex-col"><div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">';
-            html += '<div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">';
-            html += '<div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-gray-200 sm:rounded-lg">';
-            html += '<table class="min-w-full divide-y divide-gray-200">';
-            
-            html += '<thead class="bg-gray-50">';
-            html += '<tr>';
-            dataBlock.headers.forEach((header, index) => {
-                if (isInvoiceTable && index === 0) { return; }
-                html += `<th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${header}</th>`;
-            });
-            html += '</tr></thead>';
-
-            html += '<tbody class="bg-white divide-y divide-gray-200">';
-            dataBlock.rows.forEach(row => {
-                const detailString = isInvoiceTable ? row[row.length - 1] : '';
-                const staffCount = (detailString.match(/NV/g) || []).length;
-
-                let isClickable = (isInvoiceTable && staffCount > 0);
-                const trClass = isClickable ? 'cursor-pointer hover:bg-gray-50' : '';
-                const trOnclick = isClickable ? `onclick="showInvoiceDetailModal(this)"` : '';
-                
-                html += `<tr class="${trClass}" ${trOnclick}>`;
-                
-                const visibleCells = isInvoiceTable ? row.slice(0, -1) : row;
-                
-                visibleCells.forEach((cell, index) => {
-                    if (isInvoiceTable && index === 0) { return; }
-                    let displayCell = cell;
-                    if (isSoNoTable && index === 1) { 
-                        displayCell = formatStringDateToDM(cell); 
-                    } 
-                    else if (!isNaN(cell) && cell > 40000 && cell.includes('.')) { 
-                        displayCell = convertExcelDate(cell);
-                    } 
-                    else if (!isNaN(cell) && parseFloat(cell) > 1000) { 
-                        displayCell = formatCurrency(cell);
-                    }
-                    html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${displayCell}</td>`;
-                });
-
-                if (isInvoiceTable) {
-                    html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${staffCount > 0 ? staffCount + ' NV' : '---'}</td>`;
-                    html += `<td class="hidden" data-role="detail">${detailString}</td>`;
-                }
-                html += '</tr>';
-            });
-            
-            html += '</tbody></table></div></div></div></div>'; 
-            container.innerHTML = html;
-        }
-        
-        // --- 6. CÁC HÀM XỬ LÝ MODAL & TIỆN ÍCH (GIỮ NGUYÊN) ---
-
-        function toggleCollapse(headerElement) {
-            const content = headerElement.nextElementSibling;
-            const icon = headerElement.querySelector('.chevron');
-            content.classList.toggle('hidden');
-            icon.classList.toggle('chevron-rotated');
-        }
-
-        function openModal() {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            setTimeout(() => { modal.classList.add('opacity-100'); modalPanel.classList.add('scale-100'); }, 10);
-        }
-
-        function closeModal() {
-            modal.classList.remove('opacity-100');
-            modalPanel.classList.remove('scale-100');
-            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
-        }
-
-        function showInvoiceDetailModal(rowElement) {
-            const detailCell = rowElement.querySelector('td[data-role="detail"]');
-            if (!detailCell || !detailCell.innerText || detailCell.innerText.length < 10) return;
-            const detailString = detailCell.innerText;
-            const entries = detailString.split(';').filter(Boolean); 
-            if (entries.length === 0) return;
-
-            const firstRoomName = entries[0].split('*')[0] || "Chi Tiết";
-            modalTitle.innerText = `Chi Tiết - ${firstRoomName}`;
-            
-            let html = '<ul class="divide-y divide-gray-200 -mt-3">';
-            entries.forEach((entry) => {
-                const parts = entry.split('*');
-                if (parts.length < 6) return; 
-                const tenNV = parts[1];
-                const gioVao = convertExcelDate(parts[2]);
-                const gioRa = convertExcelDate(parts[3]);
-                const thoiGian = convertMinutesToHM(parts[4]);
-                const soTien = formatCurrency(parts[5]);
-                html += `
-                    <li class="py-3">
-                        <dl class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
-                            <dt class="font-medium text-gray-800 col-span-1">Nhân viên:</dt>
-                            <dd class="text-gray-700 col-span-2">${tenNV}</dd>
-                            <dt class="font-medium text-gray-800 col-span-1">Thời gian:</dt>
-                            <dd class="text-gray-700 col-span-2">${gioVao} - ${gioRa} (${thoiGian})</dd>
-                            <dt class="font-medium text-gray-800 col-span-1">Thành tiền:</dt>
-                            <dd class="text-gray-700 font-semibold text-blue-700 col-span-2">${soTien}</dd>
-                        </dl>
-                    </li>`;
-            });
-            modalContent.innerHTML = html + '</ul>';
-            openModal();
-        }
-
-        function showRevenueDetailModal(index) {
-            const item = globalData.doanhThu.ngay[index];
-            const labels = item.tieuDe;
-            const values = item.soLieu;
-            let html = '<dl class="space-y-3">';
-            labels.forEach((label, i) => {
-                html += `
-                    <div class="flex justify-between items-center text-base">
-                        <dt class="text-gray-600">${label}:</dt>
-                        <dd class="font-semibold text-gray-900">${formatCurrency(values[i])}</dd>
-                    </div>`;
-            });
-            html += '</dl>';
-            modalTitle.innerText = item.ngay.split('(')[0];
-            modalContent.innerHTML = html;
-            openModal();
-        }
-        
-        function getTrangThaiClasses(status) {
-            const s = status.toLowerCase();
-            if (s.includes('trống')) return 'bg-green-50 text-green-800 border-green-200';
-            if (s.includes('có khách')) return 'bg-purple-50 text-purple-800 border-purple-200';
-            if (s.includes('chưa dọn')) return 'bg-gray-100 text-gray-700 border-gray-300';
-            return 'bg-gray-50 text-gray-700 border-gray-200';
-        }
-        
-        function convertMinutesToHM(minutes) {
-            if (isNaN(minutes) || minutes < 0) return '---';
-            const h = Math.floor(minutes / 60);
-            const m = Math.round(minutes % 60);
-            return `${h} giờ ${m} phút`;
-        }
-        
-        function renderDoanhThu7Ngay(dataNgay) {
-            const container = document.getElementById('doanh-thu-7-ngay-bang');
-            const card = container.closest('.bg-white');
-            if (!dataNgay || dataNgay.length === 0) {
-                if(card) card.style.display = 'none';
-                return;
-            }
-            if(card) card.style.display = 'block';
-
-            let html = '<ul role="list" class="divide-y divide-gray-200">';
-            let coDoanhThu = false;
-            dataNgay.forEach((item, index) => {
-                const thucThu = parseFloat(item.soLieu[3]);
-                const phuThu = parseFloat(item.soLieu[2]);
-                const label = item.ngay;
-                if (thucThu > 0 || phuThu > 0) {
-                    coDoanhThu = true;
-                    html += `
-                        <li class="py-3 px-2 -mx-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="showRevenueDetailModal(${index})">
-                            <div class="flex justify-between items-center space-x-3">
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 truncate">${label}</p>
-                                    <p class="text-xs text-gray-500">Phụ thu: ${formatCurrency(phuThu)}</p>
-                                </div>
-                                <div class="text-base font-semibold text-green-700 whitespace-nowrap">
-                                    ${formatCurrency(thucThu)}
-                                </div>
-                            </div>
-                         </li>`;
-                }
-            });
-             if (!coDoanhThu) {
-                 if(card) card.style.display = 'none';
-             }
-            html += '</ul>';
-            container.innerHTML = html;
-        }
-        
-        function renderDoanhThuChart(data) {
-            if (chartInstance) {
-                chartInstance.destroy(); // Hủy biểu đồ cũ trước khi vẽ mới
-            }
-            const ctx = document.getElementById('revenue-chart').getContext('2d');
-            const labelThangNay = data.thangNay.label.split('(')[0].trim();
-            const labelThangTruoc = data.thangTruoc.label.split('(')[0].trim(); 
-            const dataThangNay = data.thangNay.soLieu.map(Number);
-            const dataThangTruoc = data.thangTruoc.soLieu.map(Number);
-            chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Tiền HĐ', 'Thực Đơn', 'Phụ Thu', 'Thực Thu'],
-                    datasets: [
-                        { label: labelThangTruoc, data: dataThangTruoc, backgroundColor: 'rgba(251, 146, 60, 0.6)', borderColor: 'rgba(251, 146, 60, 1)', borderWidth: 1, borderRadius: 4 },
-                        { label: labelThangNay, data: dataThangNay, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, borderRadius: 4 }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return formatCurrency(value); } } } },
-                    plugins: { tooltip: { callbacks: { label: function(context) {
-                        let label = context.dataset.label || '';
-                        if (label) { label += ': '; }
-                        if (context.parsed.y !== null) { label += formatCurrency(context.parsed.y); }
-                        return label;
-                    }}}}
-                }
-            });
-        }
-        
-        function convertExcelDate(excelSerial) {
-            if (isNaN(excelSerial) || excelSerial < 1) return '---';
-            const date = new Date((excelSerial - 25569) * 86400000);
-            const adjustedDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
-            return adjustedDate.toLocaleString('vi-VN', { 
-                hour: '2-digit', minute: '2-digit'
-            }).replace(',', '');
-        }
-        
-        function formatStringDateToDM(dateString) {
-            if (!dateString || typeof dateString !== 'string' || dateString.length < 10) return '---';
-            const parts = dateString.split('/');
-            if (parts.length < 3) return dateString; 
-            return `${parts[0]}/${parts[1]}`;
-        }
-        
-        function convertExcelDateToDMY(excelSerial) { 
-            if (isNaN(excelSerial) || excelSerial < 1) return '---';
-            const date = new Date((excelSerial - 25569) * 86400000);
-            const adjustedDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
-            return adjustedDate.toLocaleString('vi-VN', { 
-                month: '2-digit', day: '2-digit'
-            });
-        }
-        
-        function formatCurrency(number) {
-            if (isNaN(number) || number === null) return number;
-            return new Intl.NumberFormat('vi-VN').format(number);
-        }
-    </script>
+    function showTime(ts) {
+      const date = new Date(ts);
+      document.getElementById('lastUpdate').textContent = 
+        date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+  </script>
 </body>
 </html>
