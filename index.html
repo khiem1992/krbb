@@ -12,6 +12,14 @@
         #modal-panel { transition: transform 0.3s ease; }
         .chevron { transition: transform 0.2s ease-in-out; }
         .chevron-rotated { transform: rotate(180deg); }
+        /* (MỚI) Nút Refresh */
+        #refresh-button { transition: all 0.3s ease; }
+        #refresh-button.disabled {
+            opacity: 0.5; background-color: #555;
+            cursor: not-allowed; transform: scale(0.95);
+        }
+        #refresh-icon { transition: transform 0.5s ease; }
+        #refresh-button.loading #refresh-icon { transform: rotate(360deg); }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -28,6 +36,15 @@
         </div>
     </div>
     
+    <button id="refresh-button" onclick="forceFetchData()" class="fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 active:scale-95">
+        <svg id="refresh-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2.086a10.001 10.001 0 00-16.422-3.08m-.5 3.08l.5.001A10.001 10.001 0 0020 12h-5.082m-2.086 5.356a10.001 10.001 0 00-16.422 3.08m.5-3.08l-.5-.001A10.001 10.001 0 004 12h5.082"></path>
+        </svg>
+    </button>
+    <div id="refresh-toast" class="hidden fixed bottom-24 right-6 z-40 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+        Đã cập nhật dữ liệu mới!
+    </div>
+    
     <div class="container mx-auto p-4 md:p-8">
 
         <div id="page-loader" class="flex flex-col items-center justify-center min-h-screen">
@@ -42,7 +59,7 @@
                  <h4 class="font-bold text-lg">Không thể tải dữ liệu báo cáo!</h4>
                  <p class="mt-3 font-mono text-sm bg-red-50 p-2 rounded" id="fetch-error-details"></p>
             </div>
-
+            
             <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                 
                 <div class="lg:col-span-2 2xl:col-span-1 bg-white rounded-xl shadow-lg p-6">
@@ -95,8 +112,11 @@
     </div>
 
     <script>
-        // THAY THẾ BẰNG URL WEB APP CỦA BẠN
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbygAE3XFNZD5SH_2YvBL4V1pmKp8cyZaweF9iDUyP_3QQbujfyfXWHonoKuU8acdZSu/exec';
+        // --- 1. CÀI ĐẶT ---
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyCa5sx1ArOoePj3q4fwoG2QQqlK8fOc068C7GCz1xy9SsU8MohOkmn2IBNt3psBBuM/exec'; // THAY URL CỦA BẠN VÀO ĐÂY
+        const LOCAL_CACHE_KEY = 'BaoCaoCache';
+        const LOCAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 giờ theo yêu cầu
+
         let globalData = {}; 
         
         const pageLoader = document.getElementById('page-loader');
@@ -107,43 +127,183 @@
         const modalPanel = document.getElementById('modal-panel');
         const modalTitle = document.getElementById('modal-title');
         const modalContent = document.getElementById('modal-content');
+        const refreshButton = document.getElementById('refresh-button');
+        const refreshToast = document.getElementById('refresh-toast');
+        let chartInstance = null; // Biến giữ biểu đồ
 
-        window.addEventListener('DOMContentLoaded', () => fetchData());
+        // --- 2. LOGIC TẢI DỮ LIỆU (ĐÃ TỐI ƯU) ---
+        
+        window.addEventListener('DOMContentLoaded', () => loadInitialData());
 
-        function fetchData() {
-            fetch(GAS_WEB_APP_URL)
+        function loadInitialData() {
+            const cachedData = getFromLocalStorage();
+            const now = Date.now();
+
+            if (cachedData && (now - cachedData.timestamp < LOCAL_CACHE_TTL_MS)) {
+                // 1. Có cache hợp lệ: Hiển thị ngay (Lazy Render)
+                console.log('Tải từ localStorage (nhanh)');
+                globalData = cachedData.data;
+                renderDashboard(globalData, true); // true = lazy render
+                pageLoader.style.display = 'none';
+                dashboard.classList.remove('hidden');
+
+                // 2. Cập nhật ngầm (không ép)
+                fetchData(false);
+            } else {
+                // 3. Không có cache hoặc cache hết hạn 24h: Tải mới
+                console.log('Không có cache hoặc cache 24h hết hạn, tải mới...');
+                if(cachedData) localStorage.removeItem(LOCAL_CACHE_KEY); // Xóa cache cũ
+                fetchData(false); 
+            }
+        }
+
+        function fetchData(forceRefresh = false) {
+            // Thêm cache_bust để tránh cache trình duyệt
+            let url = GAS_WEB_APP_URL + '?cache_bust=' + Date.now();
+            if (forceRefresh) {
+                url += '&forceRefresh=true';
+                setRefreshButtonLoading(true);
+            }
+
+            fetch(url)
             .then(response => response.json())
             .then(res => {
                 if (res.status === 'success') {
-                    globalData = res.data;
+                    console.log('Tải dữ liệu từ GAS thành công');
+                    const cachedData = getFromLocalStorage();
+                    
+                    // So sánh lastUpdated (hash)
+                    if (!cachedData || cachedData.lastUpdated !== res.lastUpdated) {
+                        console.log('Phát hiện dữ liệu mới, render lại');
+                        globalData = res.data;
+                        renderDashboard(globalData, false); // false = render đầy đủ
+                        saveToLocalStorage(globalData, res.lastUpdated);
+                        
+                        if(forceRefresh) showToast('Đã cập nhật dữ liệu mới!');
+                    } else {
+                        console.log('Dữ liệu không đổi, không render lại');
+                        if(forceRefresh) showToast('Không có gì mới');
+                    }
+                    
                     pageLoader.style.display = 'none';
                     dashboard.classList.remove('hidden');
-                    renderDashboard(globalData);
-                } else { throw new Error(res.message || 'Lỗi từ Google Script'); }
+                    dataErrorBanner.classList.add('hidden');
+                    
+                } else { 
+                    throw new Error(res.message || 'Lỗi không xác định từ Google Script'); 
+                }
             })
             .catch(err => {
-                pageLoader.style.display = 'none'; 
-                dashboard.classList.remove('hidden'); 
-                dataErrorBanner.classList.remove('hidden');
+                console.error('Lỗi fetch:', err);
                 fetchErrorDetails.textContent = `Chi tiết lỗi: ${err.message}.`;
+                dataErrorBanner.classList.remove('hidden');
+                pageLoader.style.display = 'none';
+                dashboard.classList.remove('hidden'); // Vẫn hiện dashboard (với cache cũ nếu có)
+            })
+            .finally(() => {
+                if (forceRefresh) {
+                    setRefreshButtonLoading(false);
+                }
             });
         }
 
-        function renderDashboard(data) {
+        function forceFetchData() {
+            if (refreshButton.disabled) return; // Chống spam
+            console.log('Ép làm mới dữ liệu!');
+            fetchData(true); 
+        }
+
+        // --- 3. CÁC HÀM QUẢN LÝ CACHE (localStorage) ---
+        
+        function getFromLocalStorage() {
+            try {
+                const cachedString = localStorage.getItem(LOCAL_CACHE_KEY);
+                if (!cachedString) return null;
+                return JSON.parse(cachedString);
+            } catch (e) {
+                console.warn('Không thể đọc localStorage (có thể do chế độ ẩn danh)', e);
+                return null;
+            }
+        }
+
+        function saveToLocalStorage(data, lastUpdated) {
+             try {
+                const cachePayload = {
+                    data: data,
+                    lastUpdated: lastUpdated,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(cachePayload));
+             } catch (e) {
+                console.warn('Không thể ghi vào localStorage', e);
+             }
+        }
+
+        // --- 4. CÁC HÀM GIAO DIỆN (Refresh Button, Toast) ---
+        
+        function setRefreshButtonLoading(isLoading) {
+            const icon = document.getElementById('refresh-icon');
+            if (isLoading) {
+                refreshButton.classList.add('loading', 'disabled');
+                refreshButton.disabled = true;
+            } else {
+                refreshButton.classList.remove('loading');
+                // Debounce 10 giây theo yêu cầu
+                setTimeout(() => {
+                    refreshButton.classList.remove('disabled');
+                    refreshButton.disabled = false;
+                }, 10000); 
+            }
+        }
+        
+        function showToast(message) {
+            refreshToast.textContent = message;
+            refreshToast.classList.remove('hidden');
+            setTimeout(() => {
+                refreshToast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- 5. CÁC HÀM RENDER (ĐÃ TỐI ƯU LAZY RENDER) ---
+
+        /**
+         * Hàm render chính, hỗ trợ Lazy Render
+         * @param {object} data - Dữ liệu
+         * @param {boolean} lazy - True = chỉ render phần "above the fold"
+         */
+        function renderDashboard(data, lazy = false) {
             document.getElementById('trang-thai-thong-ke').innerHTML = '';
             
+            // 1. Luôn render Trạng Thái Phòng ngay lập tức (theo yêu cầu III.2)
             renderTrangThaiPhong(data.trangThaiPhong);
-            renderDoanhThuChart(data.doanhThu);
-            renderDoanhThu7Ngay(data.doanhThu.ngay);
-            renderTable(data.soNo, 'so-no-bang', 'Không có sổ nợ');
-            renderTable(data.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua'); 
             
-            const hdHomNayCard = document.getElementById('hd-hom-nay-bang').closest('.bg-white');
-            if (!data.hdHomNay || !data.hdHomNay.rows || data.hdHomNay.rows.length === 0) {
-                hdHomNayCard.style.display = 'none'; 
+            // 2. Các hàm render "nặng"
+            const renderHeavyComponents = () => {
+                renderDoanhThuChart(data.doanhThu);
+                renderDoanhThu7Ngay(data.doanhThu.ngay);
+                renderTable(data.soNo, 'so-no-bang', 'Không có sổ nợ');
+                renderTable(data.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua'); 
+                
+                const hdHomNayCard = document.getElementById('hd-hom-nay-bang').closest('.bg-white');
+                if (!data.hdHomNay || !data.hdHomNay.rows || data.hdHomNay.rows.length === 0) {
+                    if(hdHomNayCard) hdHomNayCard.style.display = 'none'; 
+                } else {
+                    if(hdHomNayCard) hdHomNayCard.style.display = 'block';
+                    renderTable(data.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay'); 
+                }
+            };
+
+            if (lazy) {
+                // Render sau 300ms (theo yêu cầu III.2)
+                setTimeout(renderHeavyComponents, 300);
             } else {
-                renderTable(data.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay'); 
+                // Render ngay
+                renderHeavyComponents();
             }
+            
+            // Đặt lại trạng thái đóng/mở
+            document.querySelectorAll('[id$="-content"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.chevron').forEach(el => el.classList.remove('chevron-rotated'));
         }
 
         function renderTrangThaiPhong(data) {
@@ -185,37 +345,32 @@
             container.innerHTML = html;
         }
 
-        /**
-         * (ĐÃ SỬA LỖI) Render Bảng
-         * Thêm các div wrapper để cuộn ngang
-         */
         function renderTable(dataBlock, elementId, emptyMessage) {
             const container = document.getElementById(elementId);
+            const card = container.closest('.bg-white');
+
             if (!dataBlock || !dataBlock.rows || dataBlock.rows.length === 0) {
                 if (elementId !== 'hd-hom-nay-bang') {
-                     const card = container.closest('.bg-white');
                      if(card) card.style.display = 'none';
+                } else {
+                     container.innerHTML = `<p class="text-sm text-gray-500 italic">${emptyMessage}</p>`;
                 }
-                container.innerHTML = `<p class="text-sm text-gray-500 italic">${emptyMessage}</p>`;
                 return;
             }
+            if(card) card.style.display = 'block';
             
             const isInvoiceTable = (elementId === 'hd-hom-nay-bang' || elementId === 'hd-hom-qua-bang');
             const isSoNoTable = (elementId === 'so-no-bang');
 
-            // (SỬA LỖI) Thêm các wrapper div chuẩn của Tailwind để cuộn
             let html = '<div class="flex flex-col"><div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">';
             html += '<div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">';
             html += '<div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-gray-200 sm:rounded-lg">';
-            
             html += '<table class="min-w-full divide-y divide-gray-200">';
             
             html += '<thead class="bg-gray-50">';
             html += '<tr>';
             dataBlock.headers.forEach((header, index) => {
-                if (isInvoiceTable && index === 0) {
-                    return; 
-                }
+                if (isInvoiceTable && index === 0) { return; }
                 html += `<th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${header}</th>`;
             });
             html += '</tr></thead>';
@@ -225,28 +380,17 @@
                 const detailString = isInvoiceTable ? row[row.length - 1] : '';
                 const staffCount = (detailString.match(/NV/g) || []).length;
 
-                let isClickable = false;
-                let clickFunction = '';
-
-                if (isInvoiceTable && staffCount > 0) {
-                    isClickable = true;
-                    clickFunction = 'showInvoiceDetailModal(this)';
-                }
-
+                let isClickable = (isInvoiceTable && staffCount > 0);
                 const trClass = isClickable ? 'cursor-pointer hover:bg-gray-50' : '';
-                const trOnclick = isClickable ? `onclick="${clickFunction}"` : '';
+                const trOnclick = isClickable ? `onclick="showInvoiceDetailModal(this)"` : '';
                 
                 html += `<tr class="${trClass}" ${trOnclick}>`;
                 
                 const visibleCells = isInvoiceTable ? row.slice(0, -1) : row;
                 
                 visibleCells.forEach((cell, index) => {
-                    if (isInvoiceTable && index === 0) {
-                        return;
-                    }
-
+                    if (isInvoiceTable && index === 0) { return; }
                     let displayCell = cell;
-                    
                     if (isSoNoTable && index === 1) { 
                         displayCell = formatStringDateToDM(cell); 
                     } 
@@ -256,26 +400,21 @@
                     else if (!isNaN(cell) && parseFloat(cell) > 1000) { 
                         displayCell = formatCurrency(cell);
                     }
-                    
-                    // (SỬA LỖI) Thêm 'whitespace-nowrap' để ngăn cột bị vỡ
                     html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${displayCell}</td>`;
                 });
 
                 if (isInvoiceTable) {
-                    // (SỬA LỖI) Thêm 'whitespace-nowrap'
                     html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${staffCount > 0 ? staffCount + ' NV' : '---'}</td>`;
                     html += `<td class="hidden" data-role="detail">${detailString}</td>`;
                 }
-
                 html += '</tr>';
             });
             
-            // (SỬA LỖI) Đóng các wrapper div
             html += '</tbody></table></div></div></div></div>'; 
             container.innerHTML = html;
         }
         
-        // --- CÁC HÀM XỬ LÝ LOGIC ---
+        // --- 6. CÁC HÀM XỬ LÝ MODAL & TIỆN ÍCH (GIỮ NGUYÊN) ---
 
         function toggleCollapse(headerElement) {
             const content = headerElement.nextElementSibling;
@@ -287,31 +426,20 @@
         function openModal() {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            setTimeout(() => { 
-                modal.classList.add('opacity-100');
-                modalPanel.classList.add('scale-100');
-            }, 10);
+            setTimeout(() => { modal.classList.add('opacity-100'); modalPanel.classList.add('scale-100'); }, 10);
         }
 
         function closeModal() {
             modal.classList.remove('opacity-100');
             modalPanel.classList.remove('scale-100');
-            setTimeout(() => { 
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }, 300);
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
         }
 
         function showInvoiceDetailModal(rowElement) {
             const detailCell = rowElement.querySelector('td[data-role="detail"]');
-            
-            if (!detailCell || !detailCell.innerText || detailCell.innerText.length < 10) {
-                 return; 
-            }
-
+            if (!detailCell || !detailCell.innerText || detailCell.innerText.length < 10) return;
             const detailString = detailCell.innerText;
             const entries = detailString.split(';').filter(Boolean); 
-            
             if (entries.length === 0) return;
 
             const firstRoomName = entries[0].split('*')[0] || "Chi Tiết";
@@ -321,30 +449,24 @@
             entries.forEach((entry) => {
                 const parts = entry.split('*');
                 if (parts.length < 6) return; 
-
                 const tenNV = parts[1];
                 const gioVao = convertExcelDate(parts[2]);
                 const gioRa = convertExcelDate(parts[3]);
                 const thoiGian = convertMinutesToHM(parts[4]);
                 const soTien = formatCurrency(parts[5]);
-
                 html += `
                     <li class="py-3">
                         <dl class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
                             <dt class="font-medium text-gray-800 col-span-1">Nhân viên:</dt>
                             <dd class="text-gray-700 col-span-2">${tenNV}</dd>
-                            
                             <dt class="font-medium text-gray-800 col-span-1">Thời gian:</dt>
                             <dd class="text-gray-700 col-span-2">${gioVao} - ${gioRa} (${thoiGian})</dd>
-                            
                             <dt class="font-medium text-gray-800 col-span-1">Thành tiền:</dt>
                             <dd class="text-gray-700 font-semibold text-blue-700 col-span-2">${soTien}</dd>
                         </dl>
-                    </li>
-                `;
+                    </li>`;
             });
             modalContent.innerHTML = html + '</ul>';
-            
             openModal();
         }
 
@@ -352,24 +474,19 @@
             const item = globalData.doanhThu.ngay[index];
             const labels = item.tieuDe;
             const values = item.soLieu;
-            
             let html = '<dl class="space-y-3">';
             labels.forEach((label, i) => {
                 html += `
                     <div class="flex justify-between items-center text-base">
                         <dt class="text-gray-600">${label}:</dt>
                         <dd class="font-semibold text-gray-900">${formatCurrency(values[i])}</dd>
-                    </div>
-                `;
+                    </div>`;
             });
             html += '</dl>';
-
             modalTitle.innerText = item.ngay.split('(')[0];
             modalContent.innerHTML = html;
             openModal();
         }
-        
-        // --- CÁC HÀM TIỆN ÍCH ---
         
         function getTrangThaiClasses(status) {
             const s = status.toLowerCase();
@@ -388,10 +505,12 @@
         
         function renderDoanhThu7Ngay(dataNgay) {
             const container = document.getElementById('doanh-thu-7-ngay-bang');
+            const card = container.closest('.bg-white');
             if (!dataNgay || dataNgay.length === 0) {
-                container.closest('.bg-white').style.display = 'none';
+                if(card) card.style.display = 'none';
                 return;
             }
+            if(card) card.style.display = 'block';
 
             let html = '<ul role="list" class="divide-y divide-gray-200">';
             let coDoanhThu = false;
@@ -416,19 +535,22 @@
                 }
             });
              if (!coDoanhThu) {
-                 container.closest('.bg-white').style.display = 'none';
+                 if(card) card.style.display = 'none';
              }
             html += '</ul>';
             container.innerHTML = html;
         }
         
         function renderDoanhThuChart(data) {
+            if (chartInstance) {
+                chartInstance.destroy(); // Hủy biểu đồ cũ trước khi vẽ mới
+            }
             const ctx = document.getElementById('revenue-chart').getContext('2d');
             const labelThangNay = data.thangNay.label.split('(')[0].trim();
             const labelThangTruoc = data.thangTruoc.label.split('(')[0].trim(); 
             const dataThangNay = data.thangNay.soLieu.map(Number);
             const dataThangTruoc = data.thangTruoc.soLieu.map(Number);
-            new Chart(ctx, {
+            chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Tiền HĐ', 'Thực Đơn', 'Phụ Thu', 'Thực Thu'],
