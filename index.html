@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Báo Cáo Online</title>
 
-    <!-- TỐI ƯU: Preload + Preconnect -->
+    <!-- PRELOAD + URL ĐÚNG -->
     <link rel="preconnect" href="https://script.google.com">
-    <link rel="preload" href="GAS_WEB_APP_URL" as="fetch" crossorigin>
+    <link rel="preload" href="https://script.google.com/macros/s/AKfycbxIrxlXbGlg9Y-Y-xYm4BJ9HnqaUL3K2xIps2BZ_WXCzjxShAJyMm5Y3cfMDyxR0d8/exec" as="fetch" crossorigin>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,7 +25,7 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-    <!-- Modal -->
+    <!-- MODAL -->
     <div id="detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeModal()">
         <div id="modal-panel" class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
             <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
@@ -38,10 +38,10 @@
         </div>
     </div>
 
-    <!-- Refresh Button -->
+    <!-- REFRESH BUTTON -->
     <button id="refresh-button" onclick="forceFetchData()" class="fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 active:scale-95">
         <svg id="refresh-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2.086a10.001 10.001 0 00-16.422-3.08m-.5 3.08l.5.001A10.001 10.001 0 0020 12h-5.082m-2.086 5.356a10.001 10.001 0 00-16.422 3.08m.5-3.08l-.5-.001A10.001 10.001 0 004 12h5.082"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2.086a10.001 10.001 0 00-16.422-3.08m-.5 3.08l.5.001A10.001 10.001 0 0020 12h-5.082m-2.086 5.356a10.001 10.001 0 00-16.422 3.08m-.5-3.08l-.5-.001A10.001 10.001 0 004 12h5.082"></path>
         </svg>
     </button>
     <div id="refresh-toast" class="hidden fixed bottom-24 right-6 z-40 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
@@ -58,22 +58,28 @@
         </div>
 
         <div id="dashboard" class="hidden">
-            <h1 class="text-4xl font-bold text-center text-gray-900 mb-10">Báo Cáo Kinh Doanh</h1>
+            <h1 class="text-4xl font-bold text-center text-gray-900 mb-4">Báo Cáo Kinh Doanh</h1>
 
+            <!-- CẬP NHẬT THỜI GIAN + A1 -->
+            <div id="update-info" class="hidden text-center text-sm text-gray-600 mb-6">
+                <span id="update-time">Đang tải...</span>
+            </div>
+
+            <!-- LỖI BANNER -->
             <div id="data-error-banner" class="hidden mb-6 p-5 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg shadow-md">
                 <h4 class="font-bold text-lg">Không thể tải dữ liệu!</h4>
                 <p class="mt-3 font-mono text-sm bg-red-50 p-2 rounded" id="fetch-error-details"></p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
-                <!-- Trạng Thái Phòng -->
+                <!-- TRẠNG THÁI PHÒNG -->
                 <div class="lg:col-span-2 2xl:col-span-1 bg-white rounded-xl shadow-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Tình Trạng Hoạt Động</h3>
+                    <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Trạng Thái Phòng</h3>
                     <div id="trang-thai-thong-ke" class="space-y-3 mb-5"></div>
                     <div id="trang-thai-bang" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
                 </div>
 
-                <!-- Doanh Thu 7 Ngày -->
+                <!-- DOANH THU 7 NGÀY -->
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
                         <h3 class="text-xl font-semibold">Doanh Thu 7 Ngày</h3>
@@ -84,13 +90,13 @@
                     </div>
                 </div>
 
-                <!-- Hóa Đơn Hôm Nay -->
+                <!-- HÓA ĐƠN HÔM NAY -->
                 <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
                     <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Hóa Đơn Hôm Nay</h3>
                     <div id="hd-hom-nay-bang"></div>
                 </div>
 
-                <!-- Hóa Đơn Hôm Qua -->
+                <!-- HÓA ĐƠN HÔM QUA -->
                 <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
                         <h3 class="text-xl font-semibold">Hóa Đơn Hôm Qua</h3>
@@ -101,13 +107,13 @@
                     </div>
                 </div>
 
-                <!-- Biểu Đồ Doanh Thu -->
+                <!-- BIỂU ĐỒ -->
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h3 class="text-xl font-semibold mb-4 border-b border-gray-200 pb-3">Doanh Thu Tháng (So Sánh)</h3>
                     <div class="h-80"><canvas id="revenue-chart"></canvas></div>
                 </div>
 
-                <!-- Sổ Nợ -->
+                <!-- SỔ NỢ -->
                 <div class="lg:col-span-2 2xl:col-span-1 bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
                         <h3 class="text-xl font-semibold">Sổ Nợ</h3>
@@ -123,9 +129,9 @@
 
     <script>
         // === CÀI ĐẶT ===
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw8oogkt-zsZy5eU-JFwYh-btqI0IAN7siLiFMGcSrP03txZ2onPe4VyUPRHeLLtoF9/exec'; // ← THAY URL MỚI
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIrxlXbGlg9Y-Y-xYm4BJ9HnqaUL3K2xIps2BZ_WXCzjxShAJyMm5Y3cfMDyxR0d8/exec';
         const CACHE_KEY = 'BaoCaoCache_v3';
-        const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+        const CACHE_TTL = 24 * 60 * 60 * 1000;
         let globalData = {}, chartInstance = null;
 
         const pageLoader = document.getElementById('page-loader');
@@ -134,6 +140,19 @@
         const errorDetails = document.getElementById('fetch-error-details');
         const refreshButton = document.getElementById('refresh-button');
         const refreshToast = document.getElementById('refresh-toast');
+
+        // === HIỂN THỊ CẬP NHẬT ===
+        function updateInfo(res) {
+            if (!res.a1 || !res.lastUpdated) return;
+            const date = new Date(res.lastUpdated);
+            const timeStr = date.toLocaleString('vi-VN', {
+                hour: '2-digit', minute: '2-digit',
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            }).replace(',', '');
+            const el = document.getElementById('update-time');
+            el.textContent = `Cập nhật lúc: ${timeStr} – Dữ liệu từ: "${res.a1}"`;
+            document.getElementById('update-info').classList.remove('hidden');
+        }
 
         // === TẢI DỮ LIỆU ===
         window.addEventListener('DOMContentLoaded', () => {
@@ -161,6 +180,7 @@
                         globalData = res.data;
                         setCache(res.data, res.lastUpdated);
                         renderDashboard(false);
+                        updateInfo(res);
                         if (force) showToast('Cập nhật thành công!');
                     } else if (force) {
                         showToast('Dữ liệu không thay đổi');
@@ -168,6 +188,7 @@
                     hideLoader();
                 })
                 .catch(err => {
+                    console.error('Lỗi tải dữ liệu:', err);
                     errorDetails.textContent = err.message;
                     errorBanner.classList.remove('hidden');
                     if (getCache()) renderDashboard(true);
@@ -181,15 +202,15 @@
             fetchData(true);
         }
 
-        // === RENDER NHẸ + NẶNG ===
+        // === RENDER ===
         function renderLight() {
-            renderTrangThaiPhong(globalData.trangThaiPhong);
+            if (globalData.trangThaiPhong) renderTrangThaiPhong(globalData.trangThaiPhong);
             hideLoader();
         }
 
         function renderHeavy() {
-            renderDoanhThuChart(globalData.doanhThu);
-            renderDoanhThu7Ngay(globalData.doanhThu.ngay);
+            if (globalData.doanhThu) renderDoanhThuChart(globalData.doanhThu);
+            if (globalData.doanhThu?.ngay) renderDoanhThu7Ngay(globalData.doanhThu.ngay);
             renderTable(globalData.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay');
             renderTable(globalData.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua');
             renderTable(globalData.soNo, 'so-no-bang', 'Không có sổ nợ');
@@ -208,7 +229,7 @@
 
             const container = document.getElementById('trang-thai-bang');
             if (!data.rooms || data.rooms.length === 0) {
-                container.innerHTML = `<p class="text-sm text-gray-500 italic">Không có dữ liệu phòng.</pz>`;
+                container.innerHTML = `<p class="text-sm text-gray-500 italic">Không có dữ liệu phòng.</p>`;
                 return;
             }
 
@@ -338,7 +359,7 @@
             container.innerHTML = html;
         }
 
-        // === MODAL & TIỆN ÍCH ===
+        // === MODAL ===
         function toggleCollapse(el) {
             const content = el.nextElementSibling;
             const icon = el.querySelector('.chevron');
@@ -393,6 +414,7 @@
             openModal();
         }
 
+        // === TIỆN ÍCH ===
         function getTrangThaiClasses(s) {
             s = s.toLowerCase();
             if (s.includes('trống')) return 'bg-green-50 text-green-800 border-green-200';
