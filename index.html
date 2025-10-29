@@ -96,10 +96,9 @@
 
     <script>
         // THAY THẾ BẰNG URL WEB APP CỦA BẠN
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwIZ_1HyYkNDe4cY2labxQkUjqNV4WqX3y059QApjGutOO86zR5GPCV9yxUgnDyEaUK/exec';
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbygAE3XFNZD5SH_2YvBL4V1pmKp8cyZaweF9iDUyP_3QQbujfyfXWHonoKuU8acdZSu/exec';
         let globalData = {}; 
         
-        // DOM Elements
         const pageLoader = document.getElementById('page-loader');
         const dashboard = document.getElementById('dashboard');
         const dataErrorBanner = document.getElementById('data-error-banner');
@@ -109,7 +108,6 @@
         const modalTitle = document.getElementById('modal-title');
         const modalContent = document.getElementById('modal-content');
 
-        // --- Fetch & Render ---
         window.addEventListener('DOMContentLoaded', () => fetchData());
 
         function fetchData() {
@@ -133,15 +131,20 @@
 
         function renderDashboard(data) {
             document.getElementById('trang-thai-thong-ke').innerHTML = '';
+            
             renderTrangThaiPhong(data.trangThaiPhong);
-            renderDoanhThuChart(data.doanhThu); // <--- HÀM NÀY BỊ THIẾU
+            renderDoanhThuChart(data.doanhThu);
             renderDoanhThu7Ngay(data.doanhThu.ngay);
-            renderTable(data.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay'); 
-            renderTable(data.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua'); 
             renderTable(data.soNo, 'so-no-bang', 'Không có sổ nợ');
+            renderTable(data.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua'); 
+            
+            const hdHomNayCard = document.getElementById('hd-hom-nay-bang').closest('.bg-white');
+            if (!data.hdHomNay || !data.hdHomNay.rows || data.hdHomNay.rows.length === 0) {
+                hdHomNayCard.style.display = 'none'; 
+            } else {
+                renderTable(data.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay'); 
+            }
         }
-
-        // --- CÁC HÀM RENDER ĐÃ CẬP NHẬT ---
 
         function renderTrangThaiPhong(data) {
             const thongKeDiv = document.getElementById('trang-thai-thong-ke');
@@ -185,40 +188,74 @@
         function renderTable(dataBlock, elementId, emptyMessage) {
             const container = document.getElementById(elementId);
             if (!dataBlock || !dataBlock.rows || dataBlock.rows.length === 0) {
+                if (elementId !== 'hd-hom-nay-bang') {
+                     const card = container.closest('.bg-white');
+                     if(card) card.style.display = 'none';
+                }
                 container.innerHTML = `<p class="text-sm text-gray-500 italic">${emptyMessage}</p>`;
                 return;
             }
+            
+            const isInvoiceTable = (elementId === 'hd-hom-nay-bang' || elementId === 'hd-hom-qua-bang');
+            const isSoNoTable = (elementId === 'so-no-bang');
 
             let html = '<div class="overflow-x-auto"><div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-gray-200 sm:rounded-lg">';
             html += '<table class="min-w-full divide-y divide-gray-200">';
             
             html += '<thead class="bg-gray-50">';
             html += '<tr>';
-            dataBlock.headers.forEach(header => {
+            dataBlock.headers.forEach((header, index) => {
+                if (isInvoiceTable && index === 0) {
+                    return; 
+                }
                 html += `<th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${header}</th>`;
             });
             html += '</tr></thead>';
 
             html += '<tbody class="bg-white divide-y divide-gray-200">';
             dataBlock.rows.forEach(row => {
-                const detailString = row[row.length - 1] || '';
+                const detailString = isInvoiceTable ? row[row.length - 1] : '';
+                const staffCount = (detailString.match(/NV/g) || []).length;
+
+                let isClickable = false;
+                let clickFunction = '';
+
+                if (isInvoiceTable && staffCount > 0) {
+                    isClickable = true;
+                    clickFunction = 'showInvoiceDetailModal(this)';
+                }
+
+                const trClass = isClickable ? 'cursor-pointer hover:bg-gray-50' : '';
+                const trOnclick = isClickable ? `onclick="${clickFunction}"` : '';
                 
-                html += '<tr class="cursor-pointer hover:bg-gray-50" onclick="showInvoiceDetailModal(this)">';
+                html += `<tr class="${trClass}" ${trOnclick}>`;
                 
-                row.slice(0, -1).forEach((cell, index) => {
+                const visibleCells = isInvoiceTable ? row.slice(0, -1) : row;
+                
+                visibleCells.forEach((cell, index) => {
+                    if (isInvoiceTable && index === 0) {
+                        return;
+                    }
+
                     let displayCell = cell;
-                    if (!isNaN(cell) && cell > 40000 && cell.includes('.')) { 
+                    
+                    if (isSoNoTable && index === 1) { 
+                        displayCell = formatStringDateToDM(cell); 
+                    } 
+                    else if (!isNaN(cell) && cell > 40000 && cell.includes('.')) { 
                         displayCell = convertExcelDate(cell);
-                    } else if (!isNaN(cell) && parseFloat(cell) > 1000) { 
+                    } 
+                    else if (!isNaN(cell) && parseFloat(cell) > 1000) { 
                         displayCell = formatCurrency(cell);
                     }
+                    
                     html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${displayCell}</td>`;
                 });
 
-                const staffCount = (detailString.match(/NV/g) || []).length;
-                html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${staffCount > 0 ? staffCount + ' NV' : '---'}</td>`;
-                
-                html += `<td class="hidden" data-role="detail">${detailString}</td>`;
+                if (isInvoiceTable) {
+                    html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${staffCount > 0 ? staffCount + ' NV' : '---'}</td>`;
+                    html += `<td class="hidden" data-role="detail">${detailString}</td>`;
+                }
 
                 html += '</tr>';
             });
@@ -227,17 +264,16 @@
             container.innerHTML = html;
         }
         
-        // --- CÁC HÀM XỬ LÝ LOGIC (ĐẦY ĐỦ) ---
+        // --- CÁC HÀM XỬ LÝ LOGIC ---
 
-        function toggleCollapse(headerElement) { // <--- HÀM NÀY BỊ THIẾU
+        function toggleCollapse(headerElement) {
             const content = headerElement.nextElementSibling;
             const icon = headerElement.querySelector('.chevron');
-            
             content.classList.toggle('hidden');
             icon.classList.toggle('chevron-rotated');
         }
 
-        function openModal() { // <--- HÀM NÀY BỊ THIẾU
+        function openModal() {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             setTimeout(() => { 
@@ -246,7 +282,7 @@
             }, 10);
         }
 
-        function closeModal() { // <--- HÀM NÀY BỊ THIẾU
+        function closeModal() {
             modal.classList.remove('opacity-100');
             modalPanel.classList.remove('scale-100');
             setTimeout(() => { 
@@ -259,50 +295,44 @@
             const detailCell = rowElement.querySelector('td[data-role="detail"]');
             
             if (!detailCell || !detailCell.innerText || detailCell.innerText.length < 10) {
-                modalContent.innerHTML = '<p class="text-gray-600">Không có thông tin chi tiết cho hóa đơn này.</p>';
-                modalTitle.innerText = 'Chi Tiết Hóa Đơn';
-            } else {
-                const detailString = detailCell.innerText;
-                const entries = detailString.split(';').filter(Boolean); 
-                
-                if (entries.length === 0) {
-                     modalContent.innerHTML = '<p class="text-gray-600">Không có thông tin chi tiết.</p>';
-                     modalTitle.innerText = 'Chi Tiết Hóa Đơn';
-                     openModal();
-                     return;
-                }
-
-                const firstRoomName = entries[0].split('*')[0] || "Chi Tiết";
-                modalTitle.innerText = `Chi Tiết - ${firstRoomName}`;
-                
-                let html = '<ul class="divide-y divide-gray-200 -mt-3">';
-                entries.forEach((entry) => {
-                    const parts = entry.split('*');
-                    if (parts.length < 6) return; 
-
-                    const tenNV = parts[1];
-                    const gioVao = convertExcelDate(parts[2]);
-                    const gioRa = convertExcelDate(parts[3]);
-                    const thoiGian = convertMinutesToHM(parts[4]);
-                    const soTien = formatCurrency(parts[5]);
-
-                    html += `
-                        <li class="py-3">
-                            <dl class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
-                                <dt class="font-medium text-gray-800 col-span-1">Nhân viên:</dt>
-                                <dd class="text-gray-700 col-span-2">${tenNV}</dd>
-                                
-                                <dt class="font-medium text-gray-800 col-span-1">Thời gian:</dt>
-                                <dd class="text-gray-700 col-span-2">${gioVao} - ${gioRa} (${thoiGian})</dd>
-                                
-                                <dt class="font-medium text-gray-800 col-span-1">Thành tiền:</dt>
-                                <dd class="text-gray-700 font-semibold text-blue-700 col-span-2">${soTien}</dd>
-                            </dl>
-                        </li>
-                    `;
-                });
-                modalContent.innerHTML = html + '</ul>';
+                 return; 
             }
+
+            const detailString = detailCell.innerText;
+            const entries = detailString.split(';').filter(Boolean); 
+            
+            if (entries.length === 0) return;
+
+            const firstRoomName = entries[0].split('*')[0] || "Chi Tiết";
+            modalTitle.innerText = `Chi Tiết - ${firstRoomName}`;
+            
+            let html = '<ul class="divide-y divide-gray-200 -mt-3">';
+            entries.forEach((entry) => {
+                const parts = entry.split('*');
+                if (parts.length < 6) return; 
+
+                const tenNV = parts[1];
+                const gioVao = convertExcelDate(parts[2]);
+                const gioRa = convertExcelDate(parts[3]);
+                const thoiGian = convertMinutesToHM(parts[4]);
+                const soTien = formatCurrency(parts[5]);
+
+                html += `
+                    <li class="py-3">
+                        <dl class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
+                            <dt class="font-medium text-gray-800 col-span-1">Nhân viên:</dt>
+                            <dd class="text-gray-700 col-span-2">${tenNV}</dd>
+                            
+                            <dt class="font-medium text-gray-800 col-span-1">Thời gian:</dt>
+                            <dd class="text-gray-700 col-span-2">${gioVao} - ${gioRa} (${thoiGian})</dd>
+                            
+                            <dt class="font-medium text-gray-800 col-span-1">Thành tiền:</dt>
+                            <dd class="text-gray-700 font-semibold text-blue-700 col-span-2">${soTien}</dd>
+                        </dl>
+                    </li>
+                `;
+            });
+            modalContent.innerHTML = html + '</ul>';
             
             openModal();
         }
@@ -328,7 +358,7 @@
             openModal();
         }
         
-        // --- CÁC HÀM TIỆN ÍCH (ĐẦY ĐỦ) ---
+        // --- CÁC HÀM TIỆN ÍCH ---
         
         function getTrangThaiClasses(status) {
             const s = status.toLowerCase();
@@ -347,6 +377,11 @@
         
         function renderDoanhThu7Ngay(dataNgay) {
             const container = document.getElementById('doanh-thu-7-ngay-bang');
+            if (!dataNgay || dataNgay.length === 0) {
+                container.closest('.bg-white').style.display = 'none';
+                return;
+            }
+
             let html = '<ul role="list" class="divide-y divide-gray-200">';
             let coDoanhThu = false;
             dataNgay.forEach((item, index) => {
@@ -370,16 +405,17 @@
                 }
             });
              if (!coDoanhThu) {
-                 html += '<li class="py-3 text-sm text-gray-500">Không có doanh thu 7 ngày qua.</li>'
+                 container.closest('.bg-white').style.display = 'none';
              }
             html += '</ul>';
             container.innerHTML = html;
         }
         
-        function renderDoanhThuChart(data) { // <--- HÀM NÀY BỊ THIẾU
+        // (SỬA LỖI) Đã sửa lỗi 'C0' thành '0'
+        function renderDoanhThuChart(data) {
             const ctx = document.getElementById('revenue-chart').getContext('2d');
             const labelThangNay = data.thangNay.label.split('(')[0].trim();
-            const labelThangTruoc = data.thangTruoc.label.split('(')[0].trim();
+            const labelThangTruoc = data.thangTruoc.label.split('(')[0].trim(); // Sửa lỗi ở đây
             const dataThangNay = data.thangNay.soLieu.map(Number);
             const dataThangTruoc = data.thangTruoc.soLieu.map(Number);
             new Chart(ctx, {
@@ -413,9 +449,25 @@
             }).replace(',', '');
         }
         
+        function formatStringDateToDM(dateString) {
+            if (!dateString || typeof dateString !== 'string' || dateString.length < 10) return '---';
+            const parts = dateString.split('/');
+            if (parts.length < 3) return dateString; 
+            return `${parts[0]}/${parts[1]}`;
+        }
+        
+        function convertExcelDateToDMY(excelSerial) { 
+            if (isNaN(excelSerial) || excelSerial < 1) return '---';
+            const date = new Date((excelSerial - 25569) * 86400000);
+            const adjustedDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
+            return adjustedDate.toLocaleString('vi-VN', { 
+                month: '2-digit', day: '2-digit'
+            });
+        }
+        
         function formatCurrency(number) {
             if (isNaN(number) || number === null) return number;
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(number);
+            return new Intl.NumberFormat('vi-VN').format(number);
         }
     </script>
 </body>
