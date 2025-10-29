@@ -185,6 +185,10 @@
             container.innerHTML = html;
         }
 
+        /**
+         * (ĐÃ SỬA LỖI) Render Bảng
+         * Thêm các div wrapper để cuộn ngang
+         */
         function renderTable(dataBlock, elementId, emptyMessage) {
             const container = document.getElementById(elementId);
             if (!dataBlock || !dataBlock.rows || dataBlock.rows.length === 0) {
@@ -199,7 +203,11 @@
             const isInvoiceTable = (elementId === 'hd-hom-nay-bang' || elementId === 'hd-hom-qua-bang');
             const isSoNoTable = (elementId === 'so-no-bang');
 
-            let html = '<div class="overflow-x-auto"><div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-gray-200 sm:rounded-lg">';
+            // (SỬA LỖI) Thêm các wrapper div chuẩn của Tailwind để cuộn
+            let html = '<div class="flex flex-col"><div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">';
+            html += '<div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">';
+            html += '<div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-gray-200 sm:rounded-lg">';
+            
             html += '<table class="min-w-full divide-y divide-gray-200">';
             
             html += '<thead class="bg-gray-50">';
@@ -249,10 +257,12 @@
                         displayCell = formatCurrency(cell);
                     }
                     
+                    // (SỬA LỖI) Thêm 'whitespace-nowrap' để ngăn cột bị vỡ
                     html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${displayCell}</td>`;
                 });
 
                 if (isInvoiceTable) {
+                    // (SỬA LỖI) Thêm 'whitespace-nowrap'
                     html += `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${staffCount > 0 ? staffCount + ' NV' : '---'}</td>`;
                     html += `<td class="hidden" data-role="detail">${detailString}</td>`;
                 }
@@ -260,7 +270,8 @@
                 html += '</tr>';
             });
             
-            html += '</tbody></table></div></div>'; 
+            // (SỬA LỖI) Đóng các wrapper div
+            html += '</tbody></table></div></div></div></div>'; 
             container.innerHTML = html;
         }
         
@@ -411,11 +422,10 @@
             container.innerHTML = html;
         }
         
-        // (SỬA LỖI) Đã sửa lỗi 'C0' thành '0'
         function renderDoanhThuChart(data) {
             const ctx = document.getElementById('revenue-chart').getContext('2d');
             const labelThangNay = data.thangNay.label.split('(')[0].trim();
-            const labelThangTruoc = data.thangTruoc.label.split('(')[0].trim(); // Sửa lỗi ở đây
+            const labelThangTruoc = data.thangTruoc.label.split('(')[0].trim(); 
             const dataThangNay = data.thangNay.soLieu.map(Number);
             const dataThangTruoc = data.thangTruoc.soLieu.map(Number);
             new Chart(ctx, {
