@@ -60,7 +60,7 @@
         <div id="dashboard" class="hidden">
             <h1 class="text-4xl font-bold text-center text-gray-900 mb-4">Báo Cáo Kinh Doanh</h1>
 
-            <!-- CẬP NHẬT THỜI GIAN + A1 -->
+            <!-- HIỂN THỊ CẬP NHẬT -->
             <div id="update-info" class="hidden text-center text-sm text-gray-600 mb-6">
                 <span id="update-time">Đang tải...</span>
             </div>
@@ -141,16 +141,24 @@
         const refreshButton = document.getElementById('refresh-button');
         const refreshToast = document.getElementById('refresh-toast');
 
-        // === HIỂN THỊ CẬP NHẬT ===
-        function updateInfo(res) {
-            if (!res.a1 || !res.lastUpdated) return;
-            const date = new Date(res.lastUpdated);
-            const timeStr = date.toLocaleString('vi-VN', {
+        // === HIỂN THỊ CẬP NHẬT (TỪ CACHE HOẶC SERVER) ===
+        function updateInfo(obj) {
+            const a1 = (obj.a1 || '').replace(/^\uFEFF/, '').trim();
+            const timestamp = obj.lastUpdated;
+
+            if (!timestamp) return;
+
+            const fileTime = new Date(timestamp);
+            const fileStr = fileTime.toLocaleString('vi-VN', {
                 hour: '2-digit', minute: '2-digit',
                 day: '2-digit', month: '2-digit', year: 'numeric'
             }).replace(',', '');
+
             const el = document.getElementById('update-time');
-            el.textContent = `Cập nhật lúc: ${timeStr} – Dữ liệu từ: "${res.a1}"`;
+            el.innerHTML = `
+                <strong>File cập nhật:</strong> ${fileStr}<br>
+                <strong>Báo cáo tạo lúc:</strong> ${a1 || '---'}
+            `;
             document.getElementById('update-info').classList.remove('hidden');
         }
 
@@ -161,6 +169,10 @@
                 globalData = cached.data;
                 renderLight();
                 setTimeout(renderHeavy, 100);
+
+                // HIỂN THỊ THỜI GIAN TỪ CACHE NGAY LẬP TỨC
+                updateInfo(cached);
+
                 fetchData(false);
             } else {
                 fetchData(false);
@@ -175,12 +187,15 @@
                 .then(r => r.json())
                 .then(res => {
                     if (res.status !== 'success') throw new Error(res.message || 'Lỗi server');
+
+                    // HIỂN THỊ THỜI GIAN TỪ SERVER
+                    updateInfo(res);
+
                     const cached = getCache();
                     if (!cached || cached.lastUpdated !== res.lastUpdated) {
                         globalData = res.data;
-                        setCache(res.data, res.lastUpdated);
+                        setCache(res.data, res.lastUpdated, res.a1); // LƯU A1
                         renderDashboard(false);
-                        updateInfo(res);
                         if (force) showToast('Cập nhật thành công!');
                     } else if (force) {
                         showToast('Dữ liệu không thay đổi');
@@ -448,11 +463,44 @@
         }
 
         // === CACHE & UI ===
-        function getCache() { try { const c = localStorage.getItem(CACHE_KEY); return c ? JSON.parse(c) : null; } catch { return null; } }
-        function setCache(data, lastUpdated) { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data, lastUpdated, ts: Date.now() })); } catch {} }
-        function hideLoader() { pageLoader.style.display = 'none'; dashboard.classList.remove('hidden'); }
-        function setLoading(l) { refreshButton.disabled = l; refreshButton.classList.toggle('loading', l); refreshButton.classList.toggle('disabled', l); }
-        function showToast(m) { refreshToast.textContent = m; refreshToast.classList.remove('hidden'); setTimeout(() => refreshToast.classList.add('hidden'), 3000); }
+        function getCache() {
+            try {
+                const c = localStorage.getItem(CACHE_KEY);
+                return c ? JSON.parse(c) : null;
+            } catch {
+                return null;
+            }
+        }
+
+        function setCache(data, lastUpdated, a1) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    data,
+                    lastUpdated,
+                    a1,  // LƯU A1
+                    ts: Date.now()
+                }));
+            } catch (e) {
+                console.error('Lỗi cache:', e);
+            }
+        }
+
+        function hideLoader() {
+            pageLoader.style.display = 'none';
+            dashboard.classList.remove('hidden');
+        }
+
+        function setLoading(l) {
+            refreshButton.disabled = l;
+            refreshButton.classList.toggle('loading', l);
+            refreshButton.classList.toggle('disabled', l);
+        }
+
+        function showToast(m) {
+            refreshToast.textContent = m;
+            refreshToast.classList.remove('hidden');
+            setTimeout(() => refreshToast.classList.add('hidden'), 3000);
+        }
     </script>
 </body>
 </html>
