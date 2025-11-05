@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo Online (v19)</title>
+    <title>Báo Cáo Online (v20)</title>
     <link rel="preconnect" href="https://script.google.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,9 +25,23 @@
         
         /* Print Styles cho K58 */
         @media print {
-            body * { visibility: hidden; }
-            #print-invoice, #print-invoice * { visibility: visible; }
-            #print-invoice { position: absolute; left: 0; top: 0; width: 58mm; }
+            @page {
+                size: 58mm auto; /* Rộng 58mm, cao tự động */
+                margin: 0mm; /* Không có lề */
+            }
+            
+            body {
+                margin: 0; /* Đảm bảo body không có margin */
+            }
+            
+            body * { visibility: hidden; } 
+            #print-invoice, #print-invoice * { visibility: visible; } 
+            #print-invoice { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 58mm; 
+            }
         }
         
         /* Style cho hóa đơn in K58 */
@@ -40,7 +54,7 @@
             background: white;
         }
         #print-invoice .header { text-align: center; font-weight: bold; margin-bottom: 6px; font-size: 11px; }
-        #print-invoice .section-title { font-weight: bold; margin-top: 6px; border-bottom: 1px dashed #000; padding-bottom: 2px; font-size: 10px; }
+        #print-invoice .section-title { font-weight: bold; margin-top: 6px; font-size: 10px; }
         #print-invoice table { width: 100%; border-collapse: collapse; margin: 3px 0; }
         #print-invoice td { padding: 1px 0; font-size: 9px; }
         #print-invoice .text-right { text-align: right; }
@@ -51,7 +65,6 @@
 </head>
 <body class="bg-slate-100 text-slate-800">
 
-    <!-- Hidden Print Invoice Template -->
     <div id="print-invoice" style="display: none;"></div>
 
     <div id="detail-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeModal()">
@@ -64,7 +77,6 @@
             </div>
             <div id="modal-content" class="p-6"></div>
             
-            <!-- Nút In (chỉ hiện khi có dữ liệu hóa đơn) -->
             <div id="print-buttons" class="hidden sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex gap-3 justify-center rounded-b-xl">
                 <button onclick="printInvoicePDF()" class="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
@@ -114,44 +126,37 @@
                         <div id="trang-thai-bang" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
                     </div>
                 </div>
+                
                 <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold text-slate-900">Hóa Đơn Hôm Nay</h3>
+                        <h3 class="text-xl font-semibold text-slate-900">Hóa Đơn Gần Đây</h3>
                         <svg class="chevron w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
-                    <div id="hd-hom-nay-content" class="mt-4 pt-4 border-t border-slate-200 hidden">
-                        <div id="hd-hom-nay-bang"></div>
+                    <div id="hd-gan-day-content" class="mt-4 pt-4 border-t border-slate-200 hidden">
+                        <div id="hd-gan-day-bang"></div>
                     </div>
                 </div>
-                <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold text-slate-900">Hóa Đơn Hôm Qua</h3>
-                        <svg class="chevron w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div id="hd-hom-qua-content" class="mt-4 pt-4 border-t border-slate-200 hidden">
-                        <div id="hd-hom-qua-bang"></div>
-                    </div>
-                </div>
+                
                 <div class="lg:col-span-2 2xl:col-span-1 bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold text-slate-900">Sổ Nợ</h3>
+                         <h3 class="text-xl font-semibold text-slate-900">Sổ Nợ</h3>
                         <svg class="chevron w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                     <div id="so-no-content" class="mt-4 pt-4 border-t border-slate-200 hidden">
-                        <div id="so-no-bang"></div>
+                         <div id="so-no-bang"></div>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
-                        <h3 class="text-xl font-semibold text-slate-900">Doanh Thu 7 Ngày</h3>
+                         <h3 class="text-xl font-semibold text-slate-900">Doanh Thu 7 Ngày</h3>
                         <svg class="chevron w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
-                    <div id="doanh-thu-7-ngay-content" class="mt-4 pt-4 border-t border-slate-200 hidden">
+                     <div id="doanh-thu-7-ngay-content" class="mt-4 pt-4 border-t border-slate-200 hidden">
                         <div id="doanh-thu-7-ngay-bang" class="space-y-1"></div>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
+                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleCollapse(this)">
                         <h3 class="text-xl font-semibold text-slate-900">Doanh Thu Tháng (So Sánh)</h3>
                         <svg class="chevron w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
@@ -162,11 +167,11 @@
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzCXVlSPHh_ECB-uCZGaY4AxLKHYqCnJlu2l9MQoFBm5uavHqjyKUwepBv__TY2Kx_y/exec?';
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxw1tVp2B7t2WG0GdKAugyB8kibre4S7J47H-7qZtMqpqJHEB6QodxNmDJq-kRZUaWV/exec?';
         const CACHE_KEY = 'BaoCaoCache_v13';
         const CACHE_TTL = 24 * 60 * 60 * 1000;
         
@@ -197,7 +202,7 @@
             if (cached && (Date.now() - cached.ts < CACHE_TTL)) {
                 globalData = cached.data;
                 vipRoomsData = cached.vipRooms || {}; 
-                renderLight();
+                 renderLight();
                 setTimeout(renderHeavy, 100);
                 updateInfo(cached);
                 fetchData(false);
@@ -212,17 +217,17 @@
                 updateInfo(res);
                 vipRoomsData = res.vipRooms || {};
                 const cached = getCache();
-                if (!cached || cached.lastUpdated !== res.lastUpdated) {
+                 if (!cached || cached.lastUpdated !== res.lastUpdated) {
                     globalData = res.data;
                     setCache(res.data, res.lastUpdated, res.a1, res.vipRooms);
                     renderDashboard(false);
                     if (force) showToast('Cập nhật thành công!');
-                } else if (force) { showToast('Dữ liệu không thay đổi'); }
+                 } else if (force) { showToast('Dữ liệu không thay đổi'); }
                 hideLoader();
             }).catch(err => {
                 console.error('Lỗi tải dữ liệu:', err);
                 errorDetails.textContent = err.message;
-                errorBanner.classList.remove('hidden');
+                 errorBanner.classList.remove('hidden');
                 if (getCache()) renderDashboard(true);
                 hideLoader();
             }).finally(() => setLoading(false));
@@ -241,8 +246,13 @@
         function renderHeavy() {
             if (globalData.doanhThu) renderDoanhThuChart(globalData.doanhThu);
             if (globalData.doanhThu?.ngay) renderDoanhThu7Ngay(globalData.doanhThu.ngay);
-            renderTable(globalData.hdHomNay, 'hd-hom-nay-bang', 'Không có hóa đơn hôm nay');
-            renderTable(globalData.hdHomQua, 'hd-hom-qua-bang', 'Không có hóa đơn hôm qua');
+            
+            // *** BẮT ĐẦU THAY ĐỔI V20 ***
+            // Sửa 'hdHomNay' thành 'hdGanDay' và cập nhật ID/tin nhắn
+            renderTable(globalData.hdGanDay, 'hd-gan-day-bang', 'Không có hóa đơn gần đây');
+            // Xóa dòng renderTable cho 'hdHomQua'
+            // *** KẾT THÚC THAY ĐỔI V20 ***
+            
             renderTable(globalData.soNo, 'so-no-bang', 'Không có sổ nợ');
         }
 
@@ -257,7 +267,8 @@
             thongKeDiv.innerHTML = `<div class="px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 font-medium">${data.thongKe.homNay}</div>`;
             const container = document.getElementById('trang-thai-bang');
             if (!data.rooms || data.rooms.length === 0) {
-                container.innerHTML = `<p class="text-sm text-slate-500 italic">Không có dữ liệu phòng.</p>`; return;
+                container.innerHTML = `<p class="text-sm text-slate-500 italic">Không có dữ liệu phòng.</p>`;
+                return;
             }
             let html = '';
             data.rooms.forEach(room => {
@@ -265,7 +276,7 @@
                 const colorClasses = getTrangThaiClasses(trangThai);
                 const gioVaoDisplay = (trangThai.toLowerCase().includes('có khách') || trangThai.toLowerCase().includes('chưa dọn')) ? convertExcelDate(gioVaoSerial) : '';
                 let onclickAttr = '';
-                if (/VIP\s*1/i.test(tenPhong)) onclickAttr = `onclick="showVIPDetail('VIP 1')" style="cursor:pointer"`;
+                 if (/VIP\s*1/i.test(tenPhong)) onclickAttr = `onclick="showVIPDetail('VIP 1')" style="cursor:pointer"`;
                 else if (/VIP\s*2/i.test(tenPhong)) onclickAttr = `onclick="showVIPDetail('VIP 2')" style="cursor:pointer"`;
                 else if (/VIP\s*3/i.test(tenPhong)) onclickAttr = `onclick="showVIPDetail('VIP 3')" style="cursor:pointer"`;
                 html += `
@@ -283,16 +294,23 @@
             const card = container.closest('.bg-white');
             if (!card) return;
 
+            // *** BẮT ĐẦU THAY ĐỔI V20 ***
+            // Sửa logic hiển thị thẻ trống (chỉ áp dụng cho 'hd-gan-day')
             if (!dataBlock || !dataBlock.rows || dataBlock.rows.length === 0) {
-                if (elementId !== 'hd-hom-nay-bang') card.style.display = 'none';
+                if (elementId !== 'hd-gan-day-bang') card.style.display = 'none'; 
                 else container.innerHTML = `<p class="text-sm text-slate-500 italic">${emptyMessage}</p>`;
                 return;
             }
+            // *** KẾT THÚC THAY ĐỔI V20 ***
 
             card.style.display = 'block';
-            const isInvoiceTable = (elementId === 'hd-hom-nay-bang' || elementId === 'hd-hom-qua-bang');
-            const isSoNoTable = (elementId === 'so-no-bang');
             
+            // *** BẮT ĐẦU THAY ĐỔI V20 ***
+            // Cập nhật check 'isInvoiceTable'
+            const isInvoiceTable = (elementId === 'hd-gan-day-bang');
+            // *** KẾT THÚC THAY ĐỔI V20 ***
+            
+            const isSoNoTable = (elementId === 'so-no-bang');
             let html = '<div class="flex flex-col"><div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">';
             html += '<div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">';
             html += '<div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-slate-200 sm:rounded-lg">';
@@ -301,7 +319,6 @@
 
             let orderedHeaders = [];
             let orderedIndices = [];
-            
             if (isInvoiceTable) {
                 orderedHeaders = ['PHÒNG', 'THÀNH TIỀN', 'THỰC ĐƠN', 'PHỤC VỤ', 'VÀO', 'RA'];
                 orderedIndices = [1, 4, 5, 6, 2, 3];
@@ -325,18 +342,18 @@
                     if (isInvoiceTable && idx === 0) return;
 
                     let cell = row[idx] || '';
-                    let displayCell = cell;
+                     let displayCell = cell;
                     let tdClass = 'px-4 py-3 whitespace-nowrap text-sm text-slate-800';
                     let tdOnclick = '';
 
                     if (isInvoiceTable && i === 2) {
-                        const menuItems = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
+                         const menuItems = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
                         if (menuItems > 0) {
                             displayCell = `<span class="vip-clickable">${menuItems} món</span>`;
-                            tdOnclick = `onclick="showMenuDetailModal(this, event)"`;
+                             tdOnclick = `onclick="showMenuDetailModal(this, event)"`;
                         } else {
                             displayCell = '---';
-                            tdClass += ' general-clickable';
+                             tdClass += ' general-clickable';
                             tdOnclick = `onclick="showCombinedDetailModal(this, event)"`;
                         }
                     }
@@ -388,11 +405,11 @@
                 data: {
                     labels: ['Tiền HĐ', 'Thực Đơn', 'Phụ Thu', 'Thực Thu'],
                     datasets: [
-                        { label: data.thangTruoc.label.split('(')[0].trim(), data: data.thangTruoc.soLieu.map(Number), backgroundColor: 'rgba(251, 146, 60, 0.6)' },
+                         { label: data.thangTruoc.label.split('(')[0].trim(), data: data.thangTruoc.soLieu.map(Number), backgroundColor: 'rgba(251, 146, 60, 0.6)' },
                         { label: data.thangNay.label.split('(')[0].trim(), data: data.thangNay.soLieu.map(Number), backgroundColor: 'rgba(79, 70, 229, 0.6)' }
                     ]
                 },
-                options: {
+                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } },
                     plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + formatCurrency(c.parsed.y) } } }
@@ -459,13 +476,13 @@
         function showVIPDetail(vipName) {
             const normalizedName = vipName.replace(/\s+/g, ' ').trim();
             let vipData = vipRoomsData[normalizedName];
-            if (!vipData) {
+           if (!vipData) {
                 const variants = [normalizedName.replace(/\s/g, ''), normalizedName.toUpperCase(), normalizedName.toLowerCase()];
                 for (const variant of variants) { vipData = vipRoomsData[variant]; if (vipData) break; }
             }
             if (!vipData) { alert(`Không có dữ liệu chi tiết cho ${vipName}`); return; }
 
-            // Lưu dữ liệu hóa đơn
+             // Lưu dữ liệu hóa đơn
             currentInvoiceData = {
                 type: 'vip',
                 phong: vipName,
@@ -510,7 +527,7 @@
                     const parts = item.split('*');
                     if (parts.length < 6) return null; 
                     return {
-                        phong: parts[0] || '',
+                         phong: parts[0] || '',
                         ten: parts[1] || '',
                         gioVao: parseFloat(parts[2]) || 0,
                         gioRa: parseFloat(parts[3]) || 0,
@@ -528,11 +545,11 @@
                     const parts = item.split('*');
                     if (parts.length < 3) return null;
                     const soLuong = parseFloat(parts[1]) || 0;
-                    const donGia = parseFloat(parts[2]) || 0;
+                     const donGia = parseFloat(parts[2]) || 0;
                     return {
                         ten: parts[0] || '',
                         soLuong: Math.max(0, soLuong),
-                        donGia: Math.max(0, donGia),
+                         donGia: Math.max(0, donGia),
                         thanhTien: Math.max(0, soLuong) * Math.max(0, donGia)
                     };
                 }).filter(x => x !== null);
@@ -552,23 +569,23 @@
             const tongThucDon = menuData.reduce((sum, m) => sum + m.thanhTien, 0);
             const tongNhanVien = staffData.reduce((sum, nv) => sum + nv.thanhTien, 0);
             const thanhTienHD = parseFloat(rowData[4]) || 0;
-            
+
             // Lưu dữ liệu hóa đơn
             currentInvoiceData = {
                 type: 'regular',
                 soHD: rowData[0],
                 phong: rowData[1],
                 gioVao: rowData[2],
-                gioRa: rowData[3],
+                 gioRa: rowData[3],
                 thanhTienHD: thanhTienHD,
                 thucDon: menuData,
                 nhanVien: staffData,
                 tongThucDon: tongThucDon,
                 tongNhanVien: tongNhanVien,
-                tongCong: thanhTienHD,
+                 tongCong: thanhTienHD,
                 soNhanVien: staffData.length
             };
-            
+
             document.getElementById('modal-title').innerText = `Chi Tiết Hóa Đơn - ${rowData[1]}`;
             
             let html = '<div class="space-y-6">';
@@ -576,17 +593,17 @@
                 <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200">
                     <h4 class="font-semibold text-indigo-900 mb-3 text-lg flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Thông Tin Hóa Đơn
+                         Thông Tin Hóa Đơn
                     </h4>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Số HĐ</span><strong class="text-indigo-700">${rowData[0]}</strong></div>
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Phòng</span><strong class="text-indigo-700">${rowData[1]}</strong></div>
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ vào</span><strong class="text-indigo-700">${formatDateTime(rowData[2], true)}</strong></div>
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ ra</span><strong class="text-indigo-700">${formatDateTime(rowData[3], true)}</strong></div>
-                        <div class="bg-white rounded p-2 col-span-2"><span class="text-slate-600 text-xs block">Thành tiền HĐ</span><strong class="text-2xl text-green-600">${formatCurrency(rowData[4])}</strong></div>
+                         <div class="bg-white rounded p-2 col-span-2"><span class="text-slate-600 text-xs block">Thành tiền HĐ</span><strong class="text-2xl text-green-600">${formatCurrency(rowData[4])}</strong></div>
                     </div>
                 </div>`;
-            
+
             if (menuData.length > 0) {
                 html += `<div><h4 class="font-semibold text-slate-900 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>Thực Đơn (${menuData.length} món)</h4><div class="bg-white border border-slate-200 rounded-lg overflow-hidden"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-orange-50"><tr><th class="px-4 py-2 text-left text-xs font-medium text-slate-700 uppercase">Món</th><th class="px-4 py-2 text-center text-xs font-medium text-slate-700 uppercase">SL</th><th class="px-4 py-2 text-right text-xs font-medium text-slate-700 uppercase">Thành tiền</th></tr></thead><tbody class="divide-y divide-slate-100">`;
                 menuData.forEach(mon => {
@@ -657,7 +674,7 @@
                 return;
             }
 
-            const phong = JSON.parse(row.querySelector('td[data-role="raw-data"]').innerText)[1]; 
+            const phong = JSON.parse(row.querySelector('td[data-role="raw-data"]').innerText)[1];
             document.getElementById('modal-title').innerText = `Thực Đơn - ${phong}`;
 
             let html = '<div class="space-y-4">';
@@ -677,45 +694,57 @@
         // === HÀM TẠO HÓA ĐƠN IN K58 ===
         function generateInvoiceHTML() {
             if (!currentInvoiceData) return '';
-            
             const now = new Date();
             const dateStr = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear().toString().slice(-2)}`;
             const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
             
             // Tính Tiền giờ = Thành tiền - Thực đơn - Phụ thu
-            const tienGio = currentInvoiceData.tongCong - currentInvoiceData.tongThucDon - currentInvoiceData.tongNhanVien;
+            // *** Sửa logic tính tiền giờ cho HĐ thường ***
+            let tienGio = 0;
+            if (currentInvoiceData.type === 'regular') {
+                 tienGio = currentInvoiceData.tongCong - currentInvoiceData.tongThucDon - currentInvoiceData.tongNhanVien;
+            } else if (currentInvoiceData.type === 'vip') {
+                // Đối với VIP, 'tongCong' là tổng của TĐ + NV. Tiền giờ (nếu có) phải được tính khác
+                // Hiện tại, ta giả định 'tongCong' của VIP LÀ TĐ + NV, nên tiền giờ = 0
+                // Hoặc nếu 'tongCong' là một số khác, logic cần rõ ràng hơn.
+                // Giả định: Tiền giờ của VIP được tính vào 1 trong 2 mục kia.
+                 tienGio = 0; // Giả định tiền giờ VIP = 0, vì tongCong = tongTD + tongNV
+            }
             
+            // Đảm bảo tiền giờ không âm (do làm tròn hoặc dữ liệu HĐ tổng không khớp)
+            if (currentInvoiceData.type === 'regular' && tienGio < 0 && Math.abs(tienGio) < 100) {
+                tienGio = 0; // Cho phép sai số nhỏ
+            }
+
             let html = `
                 <div class="header">
                     PHIẾU PHỤC VỤ
                 </div>
                 <div style="margin-bottom: 6px;">
                     <strong>Phòng: ${currentInvoiceData.phong}</strong>
-                </div>`;
+                 </div>`;
             
             // BẢNG NHÂN VIÊN
             if (currentInvoiceData.nhanVien && currentInvoiceData.nhanVien.length > 0) {
                 html += `
                 <table style="font-size: 9px;">
                     <thead>
-                        <tr style="border-bottom: 1px solid #000;">
-                            <td style="width: 40%;"><strong>NV</strong></td>
-                            <td style="width: 23%;"><strong>Vào</strong></td>
-                            <td style="width: 23%;"><strong>Ra</strong></td>
-                            <td style="width: 14%; text-align: right;"><strong>T.Tiền</strong></td>
+                            <td style="width: 25%;"><strong>NV</strong></td>
+                            <td style="width: 25%;"><strong>Vào</strong></td>
+                            <td style="width: 25%;"><strong>Ra</strong></td>
+                             <td style="width: 25%; text-align: right;"><strong>T.Tiền</strong></td>
                         </tr>
                     </thead>
                     <tbody>`;
-                
                 currentInvoiceData.nhanVien.forEach((nv, idx) => {
                     html += `
                         <tr>
                             <td>${nv.ten}</td>
-                            <td>${convertExcelDate(nv.gioVao)}</td>
+                             <td>${convertExcelDate(nv.gioVao)}</td>
                             <td>${convertExcelDate(nv.gioRa)}</td>
                             <td style="text-align: right;">${formatCurrency(nv.thanhTien)}</td>
                         </tr>`;
-                });
+                 });
                 
                 html += `
                     </tbody>
@@ -725,8 +754,8 @@
             html += `
                 <div style="text-align: right; margin-top: 5px; font-size: 9px;">
                     <strong>TỔNG PHỤ THU: ${formatCurrency(currentInvoiceData.tongNhanVien)}</strong>
-                </div>
-                <div class="dashed-line"></div>`;
+                    <div style="font-size: 10px; line-height: 1; margin: 3px 0;">----------------------------------</div>
+                </div>`;
             
             // PHẦN THANH TOÁN
             const soHD = currentInvoiceData.soHD || '';
@@ -735,7 +764,6 @@
                 <div style="margin: 4px 0;">
                     <strong>Phòng: ${currentInvoiceData.phong}</strong>
                 </div>`;
-            
             if (soHD) {
                 html += `<div style="margin: 2px 0; font-size: 9px;">HĐ: ${soHD}</div>`;
             }
@@ -744,7 +772,7 @@
                 <div style="margin: 2px 0; font-size: 9px;">
                     Vào: ${formatDateTime(currentInvoiceData.gioVao, true)}
                 </div>
-                <div style="margin: 2px 0; font-size: 9px;">
+                 <div style="margin: 2px 0; font-size: 9px;">
                     Ra: ${formatDateTime(currentInvoiceData.gioRa, true)}
                 </div>`;
             
@@ -763,14 +791,14 @@
                 html += `
                 <table style="margin-top: 5px;">
                     <thead>
-                        <tr style="border-bottom: 1px solid #000;">
+                        <tr>
                             <td style="width: 50%;"><strong>Tên hàng</strong></td>
-                            <td style="width: 15%; text-align: center;"><strong>SL</strong></td>
-                            <td style="width: 35%; text-align: right;"><strong>T.Tiền</strong></td>
+                            <td style="width: 25%; text-align: center;"><strong>SL</strong></td>
+                            <td style="width: 25%; text-align: right;"><strong>T.Tiền</strong></td>
                         </tr>
+                        
                     </thead>
                     <tbody>`;
-                
                 currentInvoiceData.thucDon.forEach(mon => {
                     html += `
                         <tr>
@@ -779,42 +807,46 @@
                             <td style="text-align: right;">${formatCurrency(mon.thanhTien)}</td>
                         </tr>`;
                 });
-                
                 html += `
                     </tbody>
                 </table>
-                <div class="dashed-line"></div>`;
+                <div style="font-size: 10px; line-height: 1; margin: 5px 0;">----------------------------------</div>`;
             }
             
             // TỔNG KẾT
+           // TỔNG KẾT
             html += `
                 <div style="margin-top: 5px; font-size: 9px;">
                     <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                        <span>Thực đơn:</span>
+                         <span>Thực đơn:</span>
                         <strong>${formatCurrency(currentInvoiceData.tongThucDon)}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                        <span>Tiền giờ:</span>
+                         <span>Tiền giờ:</span>
                         <strong>${formatCurrency(tienGio)}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                        <span>Phụ thu:</span>
+                         <span>Phụ thu:</span>
                         <strong>${formatCurrency(currentInvoiceData.tongNhanVien)}</strong>
                     </div>
                 </div>
-                <div style="margin-top: 4px; padding-top: 4px; border-top: 2px solid #000; font-size: 11px;">
+
+                <div style="font-size: 10px; line-height: 1; margin: 5px 0;">----------------------------------</div>
+
+                <div style="margin-top: 4px; font-size: 11px;">
                     <div style="display: flex; justify-content: space-between;">
                         <strong>Thành tiền:</strong>
                         <strong style="font-size: 13px;">${formatCurrency(currentInvoiceData.tongCong)}</strong>
                     </div>
                 </div>
-                <div class="dashed-line"></div>
+            
+                <div style="font-size: 10px; line-height: 1; margin: 5px 0;">***********************************</div>
                 <div class="footer">
                     In lúc: ${dateStr} ${timeStr}<br>
                     Cảm ơn quý khách. Hẹn gặp lại!
                 </div>`;
             
-            return html;
+             return html;
         }
 
         // === IN PDF (K58) ===
@@ -822,14 +854,14 @@
             if (!currentInvoiceData) {
                 alert('Không có dữ liệu hóa đơn để in!');
                 return;
-            }
+             }
             
             const printDiv = document.getElementById('print-invoice');
             printDiv.innerHTML = generateInvoiceHTML();
             printDiv.style.display = 'block';
             
             // Sử dụng setTimeout để đảm bảo nội dung đã render
-            setTimeout(() => {
+             setTimeout(() => {
                 window.print();
                 printDiv.style.display = 'none';
             }, 100);
@@ -851,25 +883,25 @@
                 const canvas = await html2canvas(printDiv, {
                     scale: 3,
                     backgroundColor: '#ffffff',
-                    width: 220, // 58mm ≈ 220px
+                     width: 220, // 58mm ≈ 220px
                     windowWidth: 220
                 });
-                
+
                 // Chuyển canvas thành blob
                 canvas.toBlob(blob => {
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     const timestamp = new Date().getTime();
-                    const filename = `HoaDon_${currentInvoiceData.phong.replace(/\s+/g, '_')}_${timestamp}.jpg`;
+                     const filename = `HoaDon_${currentInvoiceData.phong.replace(/\s+/g, '_')}_${timestamp}.jpg`;
                     
                     link.href = url;
                     link.download = filename;
+                    
                     link.click();
                     
                     URL.revokeObjectURL(url);
                     printDiv.style.display = 'none';
                 }, 'image/jpeg', 0.95);
-                
             } catch (error) {
                 console.error('Lỗi khi tạo ảnh:', error);
                 alert('Không thể tạo ảnh. Vui lòng thử lại!');
@@ -898,10 +930,8 @@
             if (!serial || serial === '' || serial === 0) return '---';
             if (typeof serial === 'string') serial = parseFloat(serial);
             if (isNaN(serial) || serial < 0) return '---';
-            
             const date = new Date((serial - 25569) * 86400000);
             const adj = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-            
             if (fullDate) {
                 const day = String(adj.getDate()).padStart(2, '0');
                 const month = String(adj.getMonth() + 1).padStart(2, '0');
