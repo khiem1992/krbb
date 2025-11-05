@@ -25,7 +25,10 @@
         @media print {
             @page { size: 58mm auto; margin: 0mm; }
             body { margin: 0; }
-            body * { visibility: hidden; } 
+            body *:not(#print-invoice):not(#print-invoice *) {
+    display: none !important;
+}
+
             #print-invoice, #print-invoice * { visibility: visible; } 
             #print-invoice { position: absolute; left: 0; top: 0; width: 58mm; }
         }
