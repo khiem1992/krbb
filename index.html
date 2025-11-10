@@ -34,7 +34,6 @@
         }
         #print-invoice { width: 58mm; font-family: 'Courier New', monospace; font-size: 9px; line-height: 1.2; padding: 2mm; background: white; }
         #print-invoice .header { text-align: center; font-weight: bold; margin-bottom: 6px; font-size: 11px; }
-        #print-invoice .section-title { font-weight: bold; margin-top: 6px; font-size: 10px; }
         #print-invoice table { width: 100%; border-collapse: collapse; margin: 3px 0; }
         #print-invoice td { padding: 1px 0; font-size: 9px; }
         #print-invoice .text-right { text-align: right; }
@@ -815,7 +814,7 @@
                 <div style="text-align: right; margin-top: 5px; font-size: 9px;"><strong>TỔNG PHỤ THU: ${formatCurrency(currentInvoiceData.tongNhanVien)}</strong><div style="font-size: 10px; line-height: 1; margin: 3px 0;">----------------------------------</div></div>`;
             }
             
-            html += `<div class="section-title">PHIẾU THANH TOÁN</div>
+            html += `<div class="header">PHIẾU THANH TOÁN</div>
                      <div style="margin: 4px 0;"><strong>Phòng: ${currentInvoiceData.phong}</strong></div>`;
             if (currentInvoiceData.soHD) html += `<div style="margin: 2px 0; font-size: 9px;">HĐ: ${currentInvoiceData.soHD}</div>`;
             
