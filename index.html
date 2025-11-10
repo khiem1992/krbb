@@ -34,7 +34,7 @@
         }
         #print-invoice { width: 58mm; font-family: 'Courier New', monospace; font-size: 9px; line-height: 1.2; padding: 2mm; background: white; }
         #print-invoice .header { text-align: center; font-weight: bold; margin-bottom: 6px; font-size: 11px; }
-        #print-invoice .section-title { text-align: center; font-weight: bold; margin-top: 6px; font-size: 10px; }
+        #print-invoice .section-title { font-weight: bold; margin-top: 6px; font-size: 10px; }
         #print-invoice table { width: 100%; border-collapse: collapse; margin: 3px 0; }
         #print-invoice td { padding: 1px 0; font-size: 9px; }
         #print-invoice .text-right { text-align: right; }
@@ -184,7 +184,7 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyCkJh1VwhJLcVsg626lQP7EEVXR_gPI3wxHlw740dXbTbr11ADSQXG44AJ5Ob31-ND/exec?';
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzimfOhfKkF92SBINjZxmFFXX7ji3-bpJVQ0VGYpiLoka3812UbMS7ARu5hn2qN51lfFw/exec?';
         const CACHE_KEY = 'BaoCaoCache_v25_AutoLogin';
         const CACHE_TTL = 24 * 60 * 60 * 1000;
         const API_STORAGE_KEY = 'BaoCao_API_Key'; // Key để lưu mật khẩu vào localStorage
@@ -385,8 +385,9 @@
             let orderedHeaders = [];
             let orderedIndices = [];
             if (isInvoiceTable) {
+                // Giữ nguyên header, không thêm cột Tên KH
                 orderedHeaders = ['PHÒNG', 'THÀNH TIỀN', 'THỰC ĐƠN', 'PHỤC VỤ', 'VÀO', 'RA'];
-                orderedIndices = [1, 4, 5, 6, 2, 3];
+                orderedIndices = [1, 4, 5, 6, 2, 3]; // [Phòng, Tiền, Menu, PV, Vào, Ra]
             } else if (isSoNoTable) {
                 orderedHeaders = ['KHÁCH HÀNG', 'THÀNH TIỀN', 'CÒN NỢ', 'NGÀY'];
                 orderedIndices = [0, 1, 2, 3];
@@ -403,45 +404,61 @@
             dataBlock.rows.forEach(row => {
                 html += `<tr>`; 
                 orderedIndices.forEach((idx, i) => {
-                    if (isInvoiceTable && idx === 0) return;
+                    if (isInvoiceTable && idx === 0) return; // Bỏ qua cột HĐ (index 0)
 
                     let cell = row[idx] || '';
                     let displayCell = cell;
                     let tdClass = 'px-4 py-3 whitespace-nowrap text-sm text-slate-800';
-                    let tdOnclick = '';
+                    let tdOnclick = 'onclick="showCombinedDetailModal(this, event)"'; // Gán mặc định cho HĐ
 
-                    if (isInvoiceTable && i === 2) {
+                    // i = 0: Cột PHÒNG (idx = 1)
+                    if (isInvoiceTable && i === 0) {
+                        const tenPhong = row[1]; // Dữ liệu phòng
+                        const tenKH = row[7];    // Dữ liệu Tên KH (lấy từ cột R, index 7)
+
+                        if (tenKH) {
+                            // Nếu có Tên KH, ghép chuỗi
+                            displayCell = `${tenPhong} - <span class="font-semibold text-indigo-700">${tenKH}</span>`;
+                        } else {
+                            displayCell = tenPhong;
+                        }
+                        tdClass += ' general-clickable';
+                    
+                    // i = 2: Cột THỰC ĐƠN (idx = 5)
+                    } else if (isInvoiceTable && i === 2) {
                         const menuItems = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
                         if (menuItems > 0) {
                             displayCell = `<span class="vip-clickable">${menuItems} món</span>`;
-                            tdOnclick = `onclick="showMenuDetailModal(this, event)"`;
+                            tdOnclick = `onclick="showMenuDetailModal(this, event)"`; // Ghi đè onclick
                         } else {
                             displayCell = '---';
                             tdClass += ' general-clickable';
-                            tdOnclick = `onclick="showCombinedDetailModal(this, event)"`;
                         }
-                    }
-                    else if (isInvoiceTable && i === 3) {
-                        const staffCount = (cell.match(/NV/g) || []).length;
+                    
+                    // i = 3: Cột PHỤC VỤ (idx = 6)
+                    } else if (isInvoiceTable && i === 3) {
+                        // SỬA LỖI: Đếm NV bằng dấu * và ;
+                        const staffCount = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
                         if (staffCount > 0) {
                             displayCell = `<strong class="vip-clickable">${staffCount} NV</strong>`;
-                            tdOnclick = `onclick="showStaffDetailModal(this, event)"`;
+                            tdOnclick = `onclick="showStaffDetailModal(this, event)"`; // Ghi đè onclick
                         } else {
                             displayCell = '---';
                             tdClass += ' general-clickable';
-                            tdOnclick = `onclick="showCombinedDetailModal(this, event)"`;
                         }
-                    }
-                    else if (isInvoiceTable) {
+                    
+                    // Các cột HĐ còn lại (Tiền, Vào, Ra)
+                    } else if (isInvoiceTable) {
                         tdClass += ' general-clickable';
-                        tdOnclick = `onclick="showCombinedDetailModal(this, event)"`;
                         if (!isNaN(cell) && cell > 40000 && cell.toString().includes('.')) {
                             displayCell = convertExcelDate(cell);
                         } else if (!isNaN(cell) && parseFloat(cell) > 1000) {
                             displayCell = formatCurrency(cell);
                         }
-                    }
-                    else if (isSoNoTable) {
+                    
+                    // Cột Sổ Nợ
+                    } else if (isSoNoTable) {
+                        tdOnclick = ''; // Sổ nợ không cần click
                         if (i === 3) { 
                             displayCell = formatStringDateToDM(cell);
                         } else if (i === 1 || i === 2) { 
@@ -453,8 +470,9 @@
                 });
 
                 if (isInvoiceTable) {
-                    html += `<td class="hidden" data-role="detail">${row[6]}</td>`;
-                    html += `<td class="hidden" data-role="menu">${row[5]}</td>`;
+                    html += `<td class="hidden" data-role="detail">${row[6]}</td>`; // Data Phục vụ
+                    html += `<td class="hidden" data-role="menu">${row[5]}</td>`; // Data Thực đơn
+                    // Data Tên KH (row[7]) sẽ được đọc trực tiếp từ raw-data
                     html += `<td class="hidden" data-role="raw-data">${JSON.stringify(row)}</td>`;
                 }
                 html += '</tr>';
@@ -632,6 +650,8 @@
             const tongThucDon = menuData.reduce((sum, m) => sum + m.thanhTien, 0);
             const tongNhanVien = staffData.reduce((sum, nv) => sum + nv.thanhTien, 0);
             const thanhTienHD = parseFloat(rowData[4]) || 0;
+
+            // THÊM TÊN KH VÀO DỮ LIỆU MODAL
             currentInvoiceData = {
                 type: 'regular',
                 soHD: rowData[0],
@@ -644,25 +664,35 @@
                 tongThucDon: tongThucDon,
                 tongNhanVien: tongNhanVien,
                 tongCong: thanhTienHD,
-                soNhanVien: staffData.length
+                soNhanVien: staffData.length,
+                tenKH: rowData[7] || '' // Lấy Tên KH từ index 7
             };
             document.getElementById('modal-title').innerText = `Chi Tiết Hóa Đơn - ${rowData[1]}`;
             
             let html = '<div class="space-y-6">';
+            
+            // SỬA LẠI LAYOUT ĐỂ THÊM TÊN KH
             html += `
                 <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200">
                     <h4 class="font-semibold text-indigo-900 mb-3 text-lg flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Thông Tin Hóa Đơn
+                         Thông Tin Hóa Đơn
                     </h4>
-                    <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Số HĐ</span><strong class="text-indigo-700">${rowData[0]}</strong></div>
+                    <div class="grid grid-cols-3 gap-3 text-sm">
+                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs 
+ block">Số HĐ</span><strong class="text-indigo-700">${rowData[0]}</strong></div>
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Phòng</span><strong class="text-indigo-700">${rowData[1]}</strong></div>
+                        
+                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Tên KH</span><strong class="text-indigo-700">${currentInvoiceData.tenKH || '---'}</strong></div>
+
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ vào</span><strong class="text-indigo-700">${formatDateTime(rowData[2], true)}</strong></div>
                         <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ ra</span><strong class="text-indigo-700">${formatDateTime(rowData[3], true)}</strong></div>
-                         <div class="bg-white rounded p-2 col-span-2"><span class="text-slate-600 text-xs block">Thành tiền HĐ</span><strong class="text-2xl text-green-600">${formatCurrency(rowData[4])}</strong></div>
+ 
+                         <div class="bg-white rounded p-2 col-span-3"><span class="text-slate-600 text-xs block">Thành tiền HĐ</span><strong class="text-2xl text-green-600">${formatCurrency(rowData[4])}</strong></div>
                     </div>
                 </div>`;
+            
+            // Phần còn lại của hàm (Thực đơn, Nhân viên) giữ nguyên
             if (menuData.length > 0) {
                 html += `<div><h4 class="font-semibold text-slate-900 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>Thực Đơn (${menuData.length} món)</h4><div class="bg-white border border-slate-200 rounded-lg overflow-hidden"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-orange-50"><tr><th class="px-4 py-2 text-left text-xs font-medium text-slate-700 uppercase">Món</th><th class="px-4 py-2 text-center text-xs font-medium text-slate-700 uppercase">SL</th><th class="px-4 py-2 text-right text-xs font-medium text-slate-700 uppercase">Thành tiền</th></tr></thead><tbody class="divide-y divide-slate-100">`;
                 menuData.forEach(mon => {
