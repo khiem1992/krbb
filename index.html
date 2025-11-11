@@ -183,7 +183,7 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzimfOhfKkF92SBINjZxmFFXX7ji3-bpJVQ0VGYpiLoka3812UbMS7ARu5hn2qN51lfFw/exec?';
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz_7PFF43CENmruBnZfslWxE4XJVGH38CPYOenRw_xpZKVV54KZvS_Oi5dmDKrQadpsfQ/exec?';
         const CACHE_KEY = 'BaoCaoCache_v25_AutoLogin';
         const CACHE_TTL = 24 * 60 * 60 * 1000;
         const API_STORAGE_KEY = 'BaoCao_API_Key'; // Key để lưu mật khẩu vào localStorage
@@ -360,6 +360,7 @@
             container.innerHTML = html;
         }
 
+            // === HÀM ĐÃ SỬA: Nhóm HĐ theo ngày thành các thẻ riêng biệt ===
         function renderTable(dataBlock, elementId, emptyMessage) {
             const container = document.getElementById(elementId);
             if (!container) return;
@@ -375,16 +376,14 @@
             card.style.display = 'block';
             const isInvoiceTable = (elementId === 'hd-gan-day-bang');
             const isSoNoTable = (elementId === 'so-no-bang');
-            let html = '<div class="flex flex-col"><div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">';
-            html += '<div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">';
-            html += '<div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-slate-200 sm:rounded-lg">';
-            html += '<table class="min-w-full divide-y divide-slate-200">';
-            html += '<thead class="bg-slate-50"><tr>';
+            
+            // Biến HTML tổng
+            let html = '';
 
+            // Xác định Headers và Indices cho cả hai loại bảng
             let orderedHeaders = [];
             let orderedIndices = [];
             if (isInvoiceTable) {
-                // Giữ nguyên header, không thêm cột Tên KH
                 orderedHeaders = ['PHÒNG', 'THÀNH TIỀN', 'THỰC ĐƠN', 'PHỤC VỤ', 'VÀO', 'RA'];
                 orderedIndices = [1, 4, 5, 6, 2, 3]; // [Phòng, Tiền, Menu, PV, Vào, Ra]
             } else if (isSoNoTable) {
@@ -395,88 +394,167 @@
                 orderedIndices = [...Array(dataBlock.headers.length).keys()];
             }
 
-            orderedHeaders.forEach(header => {
-                html += `<th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">${header}</th>`;
-            });
-            html += '</tr></thead><tbody class="bg-white divide-y divide-slate-200">';
-
-            dataBlock.rows.forEach(row => {
-                html += `<tr>`; 
-                orderedIndices.forEach((idx, i) => {
-                    if (isInvoiceTable && idx === 0) return; // Bỏ qua cột HĐ (index 0)
-
-                    let cell = row[idx] || '';
-                    let displayCell = cell;
-                    let tdClass = 'px-4 py-3 whitespace-nowrap text-sm text-slate-800';
-                    let tdOnclick = 'onclick="showCombinedDetailModal(this, event)"'; // Gán mặc định cho HĐ
-
-                    // i = 0: Cột PHÒNG (idx = 1)
-                    if (isInvoiceTable && i === 0) {
-                        const tenPhong = row[1]; // Dữ liệu phòng
-                        const tenKH = row[7];    // Dữ liệu Tên KH (lấy từ cột R, index 7)
-
-                        if (tenKH) {
-                            // Nếu có Tên KH, ghép chuỗi
-                            displayCell = `${tenPhong} - <span class="font-semibold text-indigo-700">${tenKH}</span>`;
-                        } else {
-                            displayCell = tenPhong;
-                        }
-                        tdClass += ' general-clickable';
+            // === L LOGIC MỚI: NẾU LÀ BẢNG HÓA ĐƠN ===
+            if (isInvoiceTable) {
+                // 1. Nhóm hóa đơn theo ngày
+                const grouped = {};
+                dataBlock.rows.forEach(row => {
+                    // Nhóm theo Giờ Ra (row[3])
+                    const checkoutTimeString = formatDateTime(row[3], true) || '';
                     
-                    // i = 2: Cột THỰC ĐƠN (idx = 5)
-                    } else if (isInvoiceTable && i === 2) {
-                        const menuItems = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
-                        if (menuItems > 0) {
-                            displayCell = `<span class="vip-clickable">${menuItems} món</span>`;
-                            tdOnclick = `onclick="showMenuDetailModal(this, event)"`; // Ghi đè onclick
-                        } else {
-                            displayCell = '---';
-                            tdClass += ' general-clickable';
-                        }
+                    if (!checkoutTimeString) {
+                        const dateKey = 'Không rõ ngày';
+                        if (!grouped[dateKey]) grouped[dateKey] = [];
+                        grouped[dateKey].push(row);
+                        return; // Bỏ qua nếu không có thời gian ra
+                    }
+
+                    // *** BẮT ĐẦU LOGIC MỚI: TÍNH TOÁN CA LÀM VIỆC (07:00 - 06:59) ***
                     
-                    // i = 3: Cột PHỤC VỤ (idx = 6)
-                    } else if (isInvoiceTable && i === 3) {
-                        // SỬA LỖI: Đếm NV bằng dấu * và ;
-                        const staffCount = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
-                        if (staffCount > 0) {
-                            displayCell = `<strong class="vip-clickable">${staffCount} NV</strong>`;
-                            tdOnclick = `onclick="showStaffDetailModal(this, event)"`; // Ghi đè onclick
-                        } else {
-                            displayCell = '---';
-                            tdClass += ' general-clickable';
-                        }
+                    // 1. Chuyển chuỗi "DD/MM/YYYY HH:MM" thành đối tượng Date
+                    const checkoutDateObj = parseDMYHM(checkoutTimeString); 
+
+                    if (!checkoutDateObj) {
+                        // Nếu không thể parse, dùng tạm ngày gốc
+                        const dateKey = checkoutTimeString.split(' ')[0] || 'Lỗi định dạng ngày';
+                        if (!grouped[dateKey]) grouped[dateKey] = [];
+                        grouped[dateKey].push(row);
+                        return; 
+                    }
+
+                    // 2. Tạo một bản sao để tính toán ngày nhóm
+                    let groupingDateObj = new Date(checkoutDateObj);
                     
-                    // Các cột HĐ còn lại (Tiền, Vào, Ra)
-                    } else if (isInvoiceTable) {
-                        tdClass += ' general-clickable';
-                        if (!isNaN(cell) && cell > 40000 && cell.toString().includes('.')) {
-                            displayCell = convertExcelDate(cell);
-                        } else if (!isNaN(cell) && parseFloat(cell) > 1000) {
-                            displayCell = formatCurrency(cell);
-                        }
+                    // 3. Kiểm tra giờ: Nếu giờ ra < 7 giờ sáng (tức 00:00 - 06:59)
+                    if (checkoutDateObj.getHours() < 7) {
+                        // Tính là hóa đơn của ngày hôm trước
+                        groupingDateObj.setDate(groupingDateObj.getDate() - 1);
+                    }
                     
-                    // Cột Sổ Nợ
-                    } else if (isSoNoTable) {
-                        tdOnclick = ''; // Sổ nợ không cần click
+                    // 4. Lấy ngày đã điều chỉnh (DD/MM/YYYY) để làm khóa nhóm
+                    const dateKey = formatDateToDMY(groupingDateObj); 
+                    // *** KẾT THÚC LOGIC MỚI ***
+
+                    if (!grouped[dateKey]) grouped[dateKey] = [];
+                    grouped[dateKey].push(row);
+                });
+
+                // 2. Bắt đầu render HTML cho các nhóm
+                html = '<div class="space-y-6">'; // Container cho tất cả các thẻ ngày
+
+                Object.keys(grouped).forEach(date => {
+                    // Thẻ cho mỗi ngày
+                    html += `
+                    <div class="bg-slate-50 rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all">
+                        <div class="bg-indigo-200 text-indigo-900 text-center py-2 font-semibold text-sm tracking-wide">
+                            📅 ${date}
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-200">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        ${orderedHeaders.map(h => `
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">${h}</th>
+                                        `).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-slate-100">
+                    `;
+
+                    // Render các hàng cho ngày đó
+                    grouped[date].forEach(row => {
+                        html += `<tr class="hover:bg-slate-50 cursor-pointer" onclick="showCombinedDetailModal(this, event)">`;
+                        orderedIndices.forEach((idx, i) => {
+                            if (idx === 0) return; // Bỏ qua cột HĐ (index 0)
+                            
+                            let cell = row[idx] || '';
+                            let displayCell = cell;
+                            let tdClass = 'px-4 py-3 whitespace-nowrap text-sm text-slate-800';
+                            let tdOnclick = ''; // Click chính đã nằm trên <tr>
+
+                            if (i === 0) { // Cột phòng (idx 1)
+                                const tenPhong = row[1];
+                                const tenKH = row[7]; // Lấy Tên KH
+                                displayCell = tenKH ? `${tenPhong} - <span class="font-semibold text-indigo-700">${tenKH}</span>` : tenPhong;
+                            } 
+                            else if (i === 2) { // Thực đơn (idx 5)
+                                const menuItems = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
+                                displayCell = menuItems > 0 
+                                    ? `<span class="vip-clickable">${menuItems} món</span>` 
+                                    : '---';
+                                // Ngăn click <tr> nếu click vào link này
+                                if (menuItems > 0) tdOnclick = `onclick="showMenuDetailModal(this, event); event.stopPropagation();"`; 
+                            } 
+                            else if (i === 3) { // Phục vụ (idx 6)
+                                const staffCount = (cell && cell.includes('*')) ? cell.split(';').filter(Boolean).length : 0;
+                                displayCell = staffCount > 0 
+                                    ? `<strong class="vip-clickable">${staffCount} NV</strong>` 
+                                    : '---';
+                                // Ngăn click <tr> nếu click vào link này
+                                if (staffCount > 0) tdOnclick = `onclick="showStaffDetailModal(this, event); event.stopPropagation();"`;
+                            } 
+                            else if (!isNaN(cell) && cell > 40000 && cell.toString().includes('.')) {
+                                displayCell = convertExcelDate(cell);
+                            } 
+                            else if (!isNaN(cell) && parseFloat(cell) > 1000) {
+                                displayCell = formatCurrency(cell);
+                            }
+
+                            html += `<td class="${tdClass}" ${tdOnclick}>${displayCell}</td>`;
+                        });
+                        
+                        // Thêm dữ liệu ẩn
+                        html += `
+                            <td class="hidden" data-role="detail">${row[6]}</td>
+                            <td class="hidden" data-role="menu">${row[5]}</td>
+                            <td class="hidden" data-role="raw-data">${JSON.stringify(row)}</td>
+                        `;
+                        html += `</tr>`;
+                    });
+
+                    // Đóng thẻ table và div
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>'; // Đóng space-y-6
+
+            // === LOGIC CŨ: NẾU LÀ BẢNG SỔ NỢ (GIỮ NGUYÊN) ===
+            } else if (isSoNoTable) {
+                html = '<div class="flex flex-col"><div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">';
+                html += '<div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">';
+                html += '<div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-hidden border-b border-slate-200 sm:rounded-lg">';
+                html += '<table class="min-w-full divide-y divide-slate-200">';
+                html += '<thead class="bg-slate-50"><tr>';
+                orderedHeaders.forEach(header => {
+                    html += `<th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">${header}</th>`;
+                });
+                html += '</tr></thead><tbody class="bg-white divide-y divide-slate-200">';
+
+                dataBlock.rows.forEach(row => {
+                    html += `<tr class="hover:bg-slate-50">`; // Sổ nợ không cần click
+                    orderedIndices.forEach((idx, i) => {
+                        let cell = row[idx] || '';
+                        let displayCell = cell;
+                        let tdClass = 'px-4 py-3 whitespace-nowrap text-sm text-slate-800';
+
                         if (i === 3) { 
                             displayCell = formatStringDateToDM(cell);
                         } else if (i === 1 || i === 2) { 
                             displayCell = `<span class="font-medium">${formatCurrency(cell)}</span>`;
                         }
-                    }
-                    
-                    html += `<td class="${tdClass}" ${tdOnclick}>${displayCell}</td>`;
+                        html += `<td class="${tdClass}">${displayCell}</td>`;
+                    });
+                    html += '</tr>';
                 });
+                html += '</tbody></table></div></div></div></div>'; // Đóng table wrappers
+            
+            } 
+            // (Bạn có thể thêm 'else' ở đây nếu có loại bảng thứ 3)
 
-                if (isInvoiceTable) {
-                    html += `<td class="hidden" data-role="detail">${row[6]}</td>`; // Data Phục vụ
-                    html += `<td class="hidden" data-role="menu">${row[5]}</td>`; // Data Thực đơn
-                    // Data Tên KH (row[7]) sẽ được đọc trực tiếp từ raw-data
-                    html += `<td class="hidden" data-role="raw-data">${JSON.stringify(row)}</td>`;
-                }
-                html += '</tr>';
-            });
-            html += '</tbody></table></div></div></div></div>';
+            // Ghi HTML vào container
             container.innerHTML = html;
         }
 
@@ -894,6 +972,24 @@
                 if (value.match(/^\d{1,2}:\d{2}$/)) return value;
             }
             return convertExcelDate(value, fullDate);
+        }
+
+function parseDMYHM(str) {
+            if (!str) return null;
+            // Tách chuỗi theo định dạng "DD/MM/YYYY HH:MM:SS"
+            const parts = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+            if (!parts) return null;
+            // parts[1] = DD, parts[2] = MM, parts[3] = YYYY, parts[4] = HH, parts[5] = MM
+            // Chú ý: Tháng trong JavaScript Date là 0-11, nên cần - 1
+            return new Date(parts[3], parts[2] - 1, parts[1], parts[4], parts[5]);
+        }
+
+        function formatDateToDMY(dateObj) {
+            if (!dateObj) return 'Không rõ ngày';
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0'); // +1 vì tháng là 0-11
+            const y = dateObj.getFullYear();
+            return `${d}/${m}/${y}`;
         }
 
         function convertExcelDate(serial, fullDate = false) {
