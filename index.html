@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo Online </title>
+    <title>Báo Cáo Online (v25 - Auto Login)</title>
     <link rel="preconnect" href="https://script.google.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -69,6 +69,53 @@
     </div>
 
     <div id="print-invoice" style="display: none;"></div>
+    <!-- Modal Lịch Sử Version -->
+<div id="history-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeHistoryModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden" onclick="event.stopPropagation()">
+        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 flex justify-between items-center">
+            <h3 class="text-xl font-semibold flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Lịch Sử Phiên Bản
+            </h3>
+            <button onclick="closeHistoryModal()" class="text-white hover:text-slate-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div id="history-loading" class="flex flex-col items-center justify-center p-12">
+            <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-slate-700 mt-4">Đang tải lịch sử...</span>
+        </div>
+        
+        <div id="history-content" class="hidden p-6 overflow-y-auto max-h-[calc(85vh-80px)]">
+            <!-- Nút Xem Phiên Bản Mới Nhất -->
+            <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <button onclick="loadCurrentVersion()" class="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-md font-semibold flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Xem Phiên Bản Mới Nhất
+                </button>
+            </div>
+            
+            <div id="version-list" class="space-y-2"></div>
+        </div>
+        
+        <div id="history-error" class="hidden p-6">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+                <p class="font-semibold">Không thể tải lịch sử phiên bản</p>
+                <p class="text-sm mt-2" id="history-error-message"></p>
+            </div>
+        </div>
+    </div>
+</div>
 
     <div id="detail-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeModal()">
         <div id="modal-panel" class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto" onclick="event.stopPropagation()">
@@ -124,8 +171,33 @@
         </div>
 
         <div id="dashboard" class="hidden">
-            <h1 class="text-4xl font-bold tracking-tight text-center text-slate-900 mb-4">Báo Cáo Tổng Hợp</h1>
+            <div class="flex justify-between items-center mb-4">
+    <h1 class="text-4xl font-bold tracking-tight text-slate-900 flex-1 text-center">Báo Cáo Tổng Hợp</h1>
+    <button id="history-button" onclick="openHistoryModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Lịch sử
+    </button>
+</div>
             <div id="update-info" class="hidden text-center text-sm text-slate-600 mb-6"><span id="update-time">Đang tải...</span></div>
+            <!-- Banner cảnh báo khi xem version cũ -->
+<div id="version-warning" class="hidden mb-6 p-5 bg-yellow-100 border-l-4 border-yellow-500 rounded-lg shadow-md">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+                <p class="font-bold text-yellow-900">Đang xem phiên bản lịch sử</p>
+                <p class="text-sm text-yellow-800" id="version-warning-text"></p>
+            </div>
+        </div>
+        <button onclick="loadCurrentVersion()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors font-medium">
+            Quay về mới nhất
+        </button>
+    </div>
+</div>
             <div id="data-error-banner" class="hidden mb-6 p-5 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg shadow-md">
                 <h4 class="font-bold text-lg">Không thể tải dữ liệu!</h4>
                 <p class="mt-3 font-mono text-sm bg-red-50 p-2 rounded" id="fetch-error-details"></p>
@@ -183,8 +255,8 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzduAyGQQ-u6f-axegYfxX4Q7nXTP2bH4WQbmy9N48JJdO28I3t5l9Nm_0pN4DA8JSz6Q/exec?';
-        const CACHE_KEY = 'BaoCaoCache_v25_AutoLogin';
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx9h4VPOVXHR5JQcrC_yeXk9FecVj1eeDTmHzyTAMrugV6ylIh6T89YFhJz3F_Rp7sqhg/exec?';
+        const CACHE_KEY = 'BaoCao_AutoLogin';
         const CACHE_TTL = 24 * 60 * 60 * 1000;
         const API_STORAGE_KEY = 'BaoCao_API_Key'; // Key để lưu mật khẩu vào localStorage
         
@@ -193,6 +265,8 @@
         let chartInstance = null;
         let currentInvoiceData = null;
         let sessionApiKey = null;
+        let versionHistory = [];
+let currentRevisionId = 'current';
 
         const pageLoader = document.getElementById('page-loader');
         const dashboard = document.getElementById('dashboard');
@@ -262,7 +336,158 @@
             document.getElementById('update-time').innerHTML = `<strong>Báo cáo tạo lúc:</strong> ${match ? match[0] : a1Raw}`;
             document.getElementById('update-info').classList.remove('hidden');
         }
+        // === HÀM XỬ LÝ LỊCH SỬ VERSION ===
+async function openHistoryModal() {
+    const modal = document.getElementById('history-modal');
+    const loading = document.getElementById('history-loading');
+    const content = document.getElementById('history-content');
+    const error = document.getElementById('history-error');
+    
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    error.classList.add('hidden');
+    
+    try {
+        const url = `${GAS_WEB_APP_URL}key=${encodeURIComponent(sessionApiKey)}&action=getVersions&t=${Date.now()}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.status === 'error') {
+            throw new Error(result.message);
+        }
+        
+        versionHistory = result.versions || [];
+        renderVersionList();
+        
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
+        
+    } catch (err) {
+        console.error('Lỗi tải lịch sử:', err);
+        document.getElementById('history-error-message').textContent = err.message;
+        loading.classList.add('hidden');
+        error.classList.remove('hidden');
+    }
+}
 
+function closeHistoryModal() {
+    const modal = document.getElementById('history-modal');
+    modal.classList.add('hidden');
+}
+
+function renderVersionList() {
+    const container = document.getElementById('version-list');
+    
+    if (versionHistory.length === 0) {
+        container.innerHTML = '<p class="text-slate-500 italic text-center py-8">Không có lịch sử phiên bản</p>';
+        return;
+    }
+    
+    let html = '';
+    versionHistory.forEach((version, index) => {
+        const date = new Date(version.modifiedDate);
+        const dateStr = `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+        const timeStr = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+        
+        // *** Check nếu là version đang xem ***
+        const isCurrent = (version.id === currentRevisionId) || (index === 0 && currentRevisionId === 'current');
+        const bgClass = isCurrent ? 'bg-blue-50 border-blue-300' : 'bg-white border-slate-200';
+        
+        html += `
+            <div class="border ${bgClass} rounded-lg p-4 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span class="font-semibold text-slate-900">${dateStr} ${timeStr}</span>
+                            ${isCurrent ? '<span class="text-xs bg-blue-600 text-white px-2 py-1 rounded">Đang xem</span>' : ''}
+                        </div>
+                        <p class="text-sm text-slate-600 mt-1">Người sửa: ${version.modifiedBy}</p>
+                    </div>
+                    <button 
+                        onclick="loadVersion('${version.id}', '${dateStr} ${timeStr}')" 
+                        class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                        ${isCurrent ? 'disabled style="opacity:0.5; cursor:not-allowed"' : ''}
+                    >
+                        Xem
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+async function loadVersion(versionId, versionLabel) {
+    closeHistoryModal();
+    currentRevisionId = versionId;
+    
+    // Hiển thị banner cảnh báo
+    const warning = document.getElementById('version-warning');
+    document.getElementById('version-warning-text').textContent = `Phiên bản: ${versionLabel}`;
+    warning.classList.remove('hidden');
+    
+    // Tải dữ liệu version
+    await fetchDataWithVersion(versionId);
+}
+
+function loadCurrentVersion() {
+    closeHistoryModal();
+    currentRevisionId = 'current';
+    
+    // Ẩn banner cảnh báo
+    const warning = document.getElementById('version-warning');
+    warning.classList.add('hidden');
+    
+    // *** QUAN TRỌNG: Xóa cache cũ để buộc tải lại ***
+    localStorage.removeItem(CACHE_KEY);
+    
+    // Hiển thị loading
+    pageLoader.style.display = 'flex';
+    dashboard.classList.add('hidden');
+    
+    // Tải dữ liệu mới nhất (force = true)
+    fetchData(true);
+}
+
+async function fetchDataWithVersion(versionId) {
+    // *** Thêm versionId vào URL khi tải version cũ ***
+    const url = `${GAS_WEB_APP_URL}key=${encodeURIComponent(sessionApiKey)}&versionId=${versionId}&t=${Date.now()}`;
+    setLoading(true);
+    
+    // Hiển thị loading
+    pageLoader.style.display = 'flex';
+    dashboard.classList.add('hidden');
+    
+    try {
+        const response = await fetch(url);
+        const res = await response.json();
+        
+        if (res.status === 'error') {
+            throw new Error(res.message);
+        }
+        
+        updateInfo(res);
+        vipRoomsData = res.vipRooms || {};
+        globalData = res.data;
+        
+        // *** QUAN TRỌNG: Luôn render lại, bỏ qua cache ***
+        renderDashboard(false);
+        hideLoader();
+        showToast('Đã tải phiên bản lịch sử');
+        
+    } catch (err) {
+        console.error('Lỗi tải version:', err);
+        errorDetails.textContent = err.message;
+        errorBanner.classList.remove('hidden');
+        hideLoader();
+    } finally {
+        setLoading(false);
+    }
+}
         function initApp() {
             const cached = getCache();
             if (cached && (Date.now() - cached.ts < CACHE_TTL)) {
@@ -275,46 +500,67 @@
             } else { fetchData(false); }
         }
 
-        function fetchData(force = false) {
-            if (!sessionApiKey) return;
-            const url = `${GAS_WEB_APP_URL}key=${encodeURIComponent(sessionApiKey)}&t=${Date.now()}${force ? '&force=true' : ''}`;
-            setLoading(force);
-            fetch(url).then(r => r.json()).then(res => {
-                if (res.status === 'error') {
-                    if (res.message && res.message.includes('Truy cập bị từ chối')) {
-                        localStorage.removeItem(API_STORAGE_KEY); // Tự động xóa mật khẩu sai
-                        throw new Error('Mật khẩu không đúng hoặc đã thay đổi! Vui lòng nhập lại.');
-                    }
-                    throw new Error(res.message || 'Lỗi server');
-                }
-                updateInfo(res);
-                vipRoomsData = res.vipRooms || {};
-                const cached = getCache();
-                if (!cached || cached.lastUpdated !== res.lastUpdated) {
-                    globalData = res.data;
-                    setCache(res.data, res.lastUpdated, res.a1, res.vipRooms);
-                    renderDashboard(false);
-                    if (force) showToast('Cập nhật thành công!');
-                } else if (force) { showToast('Dữ liệu không thay đổi'); }
-                hideLoader();
-            }).catch(err => {
-                console.error('Lỗi tải dữ liệu:', err);
-                errorDetails.textContent = err.message;
-                errorBanner.classList.remove('hidden');
-                if (err.message.includes('Mật khẩu không đúng')) {
-                     dashboard.classList.add('hidden');
-                     pageLoader.style.display = 'none';
-                } else {
-                    if (getCache()) renderDashboard(true);
-                    hideLoader();
-                }
-            }).finally(() => setLoading(false));
+       function fetchData(force = false) {
+    if (!sessionApiKey) return;
+    
+    // *** QUAN TRỌNG: Không thêm versionId vào URL khi load bản mới nhất ***
+    const url = `${GAS_WEB_APP_URL}key=${encodeURIComponent(sessionApiKey)}&t=${Date.now()}${force ? '&force=true' : ''}`;
+    setLoading(force);
+    
+    fetch(url).then(r => r.json()).then(res => {
+        if (res.status === 'error') {
+            if (res.message && res.message.includes('Truy cập bị từ chối')) {
+                localStorage.removeItem(API_STORAGE_KEY);
+                throw new Error('Mật khẩu không đúng hoặc đã thay đổi! Vui lòng nhập lại.');
+            }
+            throw new Error(res.message || 'Lỗi server');
         }
+        
+        updateInfo(res);
+        vipRoomsData = res.vipRooms || {};
+        
+        // *** LOGIC MỚI: Kiểm tra nếu đang ở chế độ xem version cũ ***
+        if (currentRevisionId !== 'current') {
+            // Đang xem lịch sử -> Bỏ qua cache, render ngay
+            globalData = res.data;
+            renderDashboard(false);
+            hideLoader();
+            if (force) showToast('Đã tải phiên bản lịch sử');
+        } else {
+            // *** Đang ở chế độ xem bản mới nhất ***
+            const cached = getCache();
+            
+            // Nếu force reload hoặc không có cache hoặc dữ liệu thay đổi
+            if (force || !cached || cached.lastUpdated !== res.lastUpdated) {
+                globalData = res.data;
+                setCache(res.data, res.lastUpdated, res.a1, res.vipRooms);
+                renderDashboard(false);
+                if (force) showToast('Đã cập nhật dữ liệu mới nhất!');
+            } else if (force) { 
+                showToast('Dữ liệu không thay đổi'); 
+            }
+            hideLoader();
+        }
+        
+    }).catch(err => {
+        console.error('Lỗi tải dữ liệu:', err);
+        errorDetails.textContent = err.message;
+        errorBanner.classList.remove('hidden');
+        if (err.message.includes('Mật khẩu không đúng')) {
+             dashboard.classList.add('hidden');
+             pageLoader.style.display = 'none';
+        } else {
+            if (getCache()) renderDashboard(true);
+            hideLoader();
+        }
+    }).finally(() => setLoading(false));
+}
 
-        function forceFetchData() {
-            if (refreshButton.disabled) return;
-            fetchData(true);
-        }
+function forceFetchData() {
+    if (refreshButton.disabled) return;
+    fetchData(true);
+}
+
 
         function renderLight() {
             if (globalData.trangThaiPhong) renderTrangThaiPhong(globalData.trangThaiPhong);
