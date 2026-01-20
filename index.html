@@ -971,86 +971,90 @@ function forceFetchData() {
         }
 
         function showCombinedDetailModal(tdElement, event) {
-            event.stopPropagation();
-            const row = tdElement.closest('tr');
-            const rawDataString = row.querySelector('td[data-role="raw-data"]').innerText;
-            if (!rawDataString) return;
-            
-            const rowData = JSON.parse(rawDataString);
-            const menuData = parseThucDonJS(rowData[5]);
-            const staffData = parseStaffJS(rowData[6]);
-            
-            const tongThucDon = menuData.reduce((sum, m) => sum + m.thanhTien, 0);
-            const tongNhanVien = staffData.reduce((sum, nv) => sum + nv.thanhTien, 0);
-            const thanhTienHD = parseFloat(rowData[4]) || 0;
+    event.stopPropagation();
+    const row = tdElement.closest('tr');
+    const rawDataString = row.querySelector('td[data-role="raw-data"]').innerText;
+    if (!rawDataString) return;
+    
+    const rowData = JSON.parse(rawDataString);
+    const menuData = parseThucDonJS(rowData[5]);
+    const staffData = parseStaffJS(rowData[6]);
+    
+    const tongThucDon = menuData.reduce((sum, m) => sum + m.thanhTien, 0);
+    const tongNhanVien = staffData.reduce((sum, nv) => sum + nv.thanhTien, 0);
+    const thanhTienHD = parseFloat(rowData[4]) || 0;
 
-            // THÊM TÊN KH VÀO DỮ LIỆU MODAL
-            currentInvoiceData = {
-                type: 'regular',
-                soHD: rowData[0],
-                phong: rowData[1],
-                gioVao: rowData[2],
-                gioRa: rowData[3],
-                thanhTienHD: thanhTienHD,
-                thucDon: menuData,
-                nhanVien: staffData,
-                tongThucDon: tongThucDon,
-                tongNhanVien: tongNhanVien,
-                tongCong: thanhTienHD,
-                soNhanVien: staffData.length,
-                tenKH: rowData[7] || '' // Lấy Tên KH từ index 7
-            };
-            document.getElementById('modal-title').innerText = `Chi Tiết Hóa Đơn - ${rowData[1]}`;
-            
-            let html = '<div class="space-y-6">';
-            
-            // SỬA LẠI LAYOUT ĐỂ THÊM TÊN KH
-            html += `
-                <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200">
-                    <h4 class="font-semibold text-indigo-900 mb-3 text-lg flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                         Thông Tin Hóa Đơn
-                    </h4>
-                    <div class="grid grid-cols-3 gap-3 text-sm">
-                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs 
- block">Số HĐ</span><strong class="text-indigo-700">${rowData[0]}</strong></div>
-                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Phòng</span><strong class="text-indigo-700">${rowData[1]}</strong></div>
-                        
-                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Tên KH</span><strong class="text-indigo-700">${currentInvoiceData.tenKH || '---'}</strong></div>
+    // Tính toán tiền giờ
+    let tienGio = thanhTienHD - tongThucDon - tongNhanVien;
+    if (tienGio < 0 && Math.abs(tienGio) < 100) tienGio = 0; // Xử lý sai số nhỏ nếu có
 
-                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ vào</span><strong class="text-indigo-700">${formatDateTime(rowData[2], true)}</strong></div>
-                        <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ ra</span><strong class="text-indigo-700">${formatDateTime(rowData[3], true)}</strong></div>
- 
-                         <div class="bg-white rounded p-2 col-span-3"><span class="text-slate-600 text-xs block">Thành tiền HĐ</span><strong class="text-2xl text-green-600">${formatCurrency(rowData[4])}</strong></div>
-                    </div>
-                </div>`;
-            
-            // Phần còn lại của hàm (Thực đơn, Nhân viên) giữ nguyên
-            if (menuData.length > 0) {
-                html += `<div><h4 class="font-semibold text-slate-900 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>Thực Đơn (${menuData.length} món)</h4><div class="bg-white border border-slate-200 rounded-lg overflow-hidden"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-orange-50"><tr><th class="px-4 py-2 text-left text-xs font-medium text-slate-700 uppercase">Món</th><th class="px-4 py-2 text-center text-xs font-medium text-slate-700 uppercase">SL</th><th class="px-4 py-2 text-right text-xs font-medium text-slate-700 uppercase">Thành tiền</th></tr></thead><tbody class="divide-y divide-slate-100">`;
-                menuData.forEach(mon => {
-                    html += `<tr class="hover:bg-orange-50 transition-colors"><td class="px-4 py-2 text-sm text-slate-800">${mon.ten}</td><td class="px-4 py-2 text-sm text-center font-medium text-slate-700">${mon.soLuong}</td><td class="px-4 py-2 text-sm text-right font-semibold text-slate-900">${formatCurrency(mon.thanhTien)}</td></tr>`; 
-                });
-                html += `</tbody><tfoot class="bg-orange-50 border-t-2 border-orange-200"><tr><td colspan="2" class="px-4 py-3 text-sm font-bold text-slate-700 text-right">Tổng thực đơn:</td><td class="px-4 py-3 text-base font-bold text-orange-600 text-right">${formatCurrency(tongThucDon)}</td></tr></tfoot></table></div></div>`;
-            } else {
-                html += `<div class="text-sm text-slate-500 italic bg-slate-50 rounded-lg p-4 text-center">Không có thực đơn</div>`;
-            }
+    currentInvoiceData = {
+        type: 'regular',
+        soHD: rowData[0],
+        phong: rowData[1],
+        gioVao: rowData[2],
+        gioRa: rowData[3],
+        thanhTienHD: thanhTienHD,
+        thucDon: menuData,
+        nhanVien: staffData,
+        tongThucDon: tongThucDon,
+        tongNhanVien: tongNhanVien,
+        tienGio: tienGio, // Lưu thêm tiền giờ
+        tongCong: thanhTienHD,
+        soNhanVien: staffData.length,
+        tenKH: rowData[7] || ''
+    };
 
-            if (staffData.length > 0) {
-                html += `<div><h4 class="font-semibold text-slate-900 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>Nhân Viên Phục Vụ (${staffData.length})</h4><div class="space-y-3">`;
-                staffData.forEach((nv, idx) => {
-                    html += `<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><div><span class="font-semibold text-slate-900 text-base">${idx + 1}. ${nv.ten}</span><p class="text-xs text-slate-600 mt-1"><strong>Thời gian:</strong> ${convertExcelDate(nv.gioVao)} → ${convertExcelDate(nv.gioRa)} (${convertMinutesToHM(nv.tongPhut)})</p></div><span class="font-bold text-lg text-blue-700">${formatCurrency(nv.thanhTien)}</span></div></div>`;
-                });
-                html += `</div><div class="mt-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-4 border-2 border-blue-300"><div class="flex justify-between items-center"><span class="font-bold text-slate-800 text-lg">Tổng tiền nhân viên:</span><span class="font-bold text-blue-700 text-2xl">${formatCurrency(tongNhanVien)}</span></div></div></div>`;
-            } else {
-                html += `<div class="text-sm text-slate-500 italic bg-slate-50 rounded-lg p-4 text-center">Không có nhân viên phục vụ</div>`;
-            }
+    document.getElementById('modal-title').innerText = `Chi Tiết Hóa Đơn - ${rowData[1]}`;
+    
+    let html = '<div class="space-y-6">';
+    
+    html += `
+        <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200">
+            <h4 class="font-semibold text-indigo-900 mb-3 text-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                 Thông Tin Hóa Đơn
+            </h4>
+            <div class="grid grid-cols-3 gap-3 text-sm">
+                <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Số HĐ</span><strong class="text-indigo-700">${rowData[0]}</strong></div>
+                <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Phòng</span><strong class="text-indigo-700">${rowData[1]}</strong></div>
+                <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Tên KH</span><strong class="text-indigo-700">${currentInvoiceData.tenKH || '---'}</strong></div>
 
-            html += '</div>';
-            document.getElementById('modal-content').innerHTML = html;
-            printButtons.classList.remove('hidden');
-            openModal();
-        }
+                <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ vào</span><strong class="text-indigo-700">${formatDateTime(rowData[2], true)}</strong></div>
+                <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Giờ ra</span><strong class="text-indigo-700">${formatDateTime(rowData[3], true)}</strong></div>
+                
+                <div class="bg-white rounded p-2"><span class="text-slate-600 text-xs block">Tiền giờ</span><strong class="text-indigo-700">${formatCurrency(tienGio)}</strong></div>
+
+                <div class="bg-white rounded p-2 col-span-3"><span class="text-slate-600 text-xs block">Thành tiền HĐ</span><strong class="text-2xl text-green-600">${formatCurrency(rowData[4])}</strong></div>
+            </div>
+        </div>`;
+    
+    // Giữ nguyên phần render Thực đơn và Nhân viên bên dưới...
+    if (menuData.length > 0) {
+        html += `<div><h4 class="font-semibold text-slate-900 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>Thực Đơn (${menuData.length} món)</h4><div class="bg-white border border-slate-200 rounded-lg overflow-hidden"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-orange-50"><tr><th class="px-4 py-2 text-left text-xs font-medium text-slate-700 uppercase">Món</th><th class="px-4 py-2 text-center text-xs font-medium text-slate-700 uppercase">SL</th><th class="px-4 py-2 text-right text-xs font-medium text-slate-700 uppercase">Thành tiền</th></tr></thead><tbody class="divide-y divide-slate-100">`;
+        menuData.forEach(mon => {
+            html += `<tr class="hover:bg-orange-50 transition-colors"><td class="px-4 py-2 text-sm text-slate-800">${mon.ten}</td><td class="px-4 py-2 text-sm text-center font-medium text-slate-700">${mon.soLuong}</td><td class="px-4 py-2 text-sm text-right font-semibold text-slate-900">${formatCurrency(mon.thanhTien)}</td></tr>`; 
+        });
+        html += `</tbody><tfoot class="bg-orange-50 border-t-2 border-orange-200"><tr><td colspan="2" class="px-4 py-3 text-sm font-bold text-slate-700 text-right">Tổng thực đơn:</td><td class="px-4 py-3 text-base font-bold text-orange-600 text-right">${formatCurrency(tongThucDon)}</td></tr></tfoot></table></div></div>`;
+    } else {
+        html += `<div class="text-sm text-slate-500 italic bg-slate-50 rounded-lg p-4 text-center">Không có thực đơn</div>`;
+    }
+
+    if (staffData.length > 0) {
+        html += `<div><h4 class="font-semibold text-slate-900 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>Nhân Viên Phục Vụ (${staffData.length})</h4><div class="space-y-3">`;
+        staffData.forEach((nv, idx) => {
+            html += `<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><div><span class="font-semibold text-slate-900 text-base">${idx + 1}. ${nv.ten}</span><p class="text-xs text-slate-600 mt-1"><strong>Thời gian:</strong> ${convertExcelDate(nv.gioVao)} → ${convertExcelDate(nv.gioRa)} (${convertMinutesToHM(nv.tongPhut)})</p></div><span class="font-bold text-lg text-blue-700">${formatCurrency(nv.thanhTien)}</span></div></div>`;
+        });
+        html += `</div><div class="mt-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-4 border-2 border-blue-300"><div class="flex justify-between items-center"><span class="font-bold text-slate-800 text-lg">Tổng tiền nhân viên:</span><span class="font-bold text-blue-700 text-2xl">${formatCurrency(tongNhanVien)}</span></div></div></div>`;
+    } else {
+        html += `<div class="text-sm text-slate-500 italic bg-slate-50 rounded-lg p-4 text-center">Không có nhân viên phục vụ</div>`;
+    }
+
+    html += '</div>';
+    document.getElementById('modal-content').innerHTML = html;
+    printButtons.classList.remove('hidden');
+    openModal();
+}
 
         function showStaffDetailModal(tdElement, event) {
             event.stopPropagation();
